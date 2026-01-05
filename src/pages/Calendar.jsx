@@ -12,6 +12,7 @@ export default function Calendar() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [showModal, setShowModal] = useState(false);
     const [showReport, setShowReport] = useState(false);
+    const [showGeneralReport, setShowGeneralReport] = useState(false); // New state for General Report
 
     const [formData, setFormData] = useState({
         employeeId: '',
@@ -66,7 +67,7 @@ export default function Calendar() {
         } catch { return false; }
     }).sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date));
 
-    // Prepare data for the ReportModal
+    // Prepare data for the Monthly ReportModal
     const reportData = monthlyVacations.map(vac => {
         const emp = employees.find(e => e.id === vac.employee_id);
         const start = parseISO(vac.start_date);
@@ -88,6 +89,31 @@ export default function Calendar() {
         };
     });
 
+    // Prepare data for General Report (All Vacations)
+    const generalReportData = vacations
+        .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))
+        .map(vac => {
+            const emp = employees.find(e => e.id === vac.employee_id);
+            const start = parseISO(vac.start_date);
+            const end = parseISO(vac.end_date);
+            const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
+
+            return {
+                name: emp?.name || 'Desconhecido',
+                start,
+                end,
+                days,
+                status: isWithinInterval(new Date(), { start, end }) ? 'Em andamento' : (start > new Date() ? 'Agendado' : 'Concluído')
+            };
+        });
+
+    const generalReportColumns = [
+        { header: 'Funcionário', accessor: 'name', className: 'font-bold text-white' },
+        { header: 'Saída', cell: (row) => format(row.start, 'dd/MM/yy') },
+        { header: 'Volta', cell: (row) => format(row.end, 'dd/MM/yy') },
+        { header: 'Status', accessor: 'status', className: 'text-xs uppercase tracking-wider font-bold text-zinc-500' }
+    ];
+
     const reportColumns = [
         { header: 'Funcionário', accessor: 'name', className: 'font-bold text-white' },
         { header: 'Saída', cell: (row) => format(row.start, 'dd/MM') },
@@ -97,15 +123,22 @@ export default function Calendar() {
 
     const handleShareSchedule = () => {
         const monthName = format(currentDate, 'MMMM/yyyy', { locale: ptBR });
-        const text = `📅 *Escala de Férias - Skina Beer*\n` +
-            `🗓️ *Mês Referência:* ${monthName}\n\n` +
-            (monthlyVacations.length === 0 ? "Nenhuma férias agendada neste mês." :
+        const text = `📅 *Escala Mensal - Skina Beer*\n` +
+            `🗓️ *Mês:* ${monthName}\n\n` +
+            (monthlyVacations.length === 0 ? "Nenhuma férias." :
                 monthlyVacations.map(v => {
                     const emp = employees.find(e => e.id === v.employee_id);
-                    return `👤 *${emp?.name || 'Func.'}*\n   📅 ${format(parseISO(v.start_date), 'dd/MM')} a ${format(parseISO(v.end_date), 'dd/MM')}`;
-                }).join('\n\n')) +
-            `\n\n🔗 Acesse para ver detalhes: app.holidayskinabeer.com`;
+                    return `👤 ${emp?.name} (${format(parseISO(v.start_date), 'dd/MM')} a ${format(parseISO(v.end_date), 'dd/MM')})`;
+                }).join('\n')) +
+            `\n\n🔗 app.holidayskinabeer.com`;
 
+        openWhatsApp(text);
+    };
+
+    const handleShareGeneral = () => {
+        const text = `📅 *Relatório Geral de Férias - Skina Beer*\n\n` +
+            generalReportData.map(v => `👤 ${v.name}: ${format(v.start, 'dd/MM/yy')} a ${format(v.end, 'dd/MM/yy')} (${v.status})`).join('\n') +
+            `\n\n🔗 app.holidayskinabeer.com`;
         openWhatsApp(text);
     };
 
@@ -123,15 +156,16 @@ export default function Calendar() {
                         <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-white/5 rounded-md transition-colors"><ChevronRight size={20} /></button>
                     </div>
 
-                    <button onClick={handleShareSchedule} className="btn-secondary flex items-center gap-2" title="Enviar Escala no WhatsApp">
-                        <Share2 size={20} />
-                        <span className="hidden md:inline">Enviar Escala</span>
-                    </button>
-
-                    <button onClick={() => setShowReport(true)} className="btn-secondary flex items-center gap-2" title="Relatório da Escala">
-                        <FileBarChart size={20} />
-                        <span className="hidden md:inline">Relatório</span>
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowReport(true)} className="btn-secondary flex items-center gap-2" title="Relatório Mês">
+                            <FileBarChart size={20} />
+                            <span className="hidden md:inline">Mês</span>
+                        </button>
+                        <button onClick={() => setShowGeneralReport(true)} className="btn-secondary flex items-center gap-2" title="Todas as Férias">
+                            <FileBarChart size={20} />
+                            <span className="hidden md:inline">Geral</span>
+                        </button>
+                    </div>
 
                     <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
                         <Plus size={20} />
@@ -188,6 +222,7 @@ export default function Calendar() {
                 </div>
             </div>
 
+            {/* Report Modal - Monthly */}
             <ReportModal
                 isOpen={showReport}
                 onClose={() => setShowReport(false)}
@@ -197,7 +232,17 @@ export default function Calendar() {
                 onShare={handleShareSchedule}
             />
 
-            {/* Modal Overlay */}
+            {/* Report Modal - General */}
+            <ReportModal
+                isOpen={showGeneralReport}
+                onClose={() => setShowGeneralReport(false)}
+                title="Relatório Geral de Férias"
+                columns={generalReportColumns}
+                data={generalReportData}
+                onShare={handleShareGeneral}
+            />
+
+            {/* Modal Overlay Schedule */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 border-zinc-700">
