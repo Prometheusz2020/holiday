@@ -1,10 +1,14 @@
 import { useApp } from '../context/AppContext';
 import { format, isWithinInterval, parseISO, isFuture, addDays, compareAsc, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2 } from 'lucide-react';
+import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2, Share2, Wallet, FileBarChart } from 'lucide-react';
+import { formatCurrency, openWhatsApp } from '../utils/whatsapp';
+import { useState } from 'react';
+import ReportModal from '../components/ReportModal';
 
 export default function Dashboard() {
     const { employees, vacations, loading } = useApp();
+    const [showReport, setShowReport] = useState(false);
     const today = new Date();
 
     if (loading) {
@@ -17,7 +21,6 @@ export default function Dashboard() {
 
     const awayToday = vacations.filter(vac => {
         if (!vac.start_date || !vac.end_date) return false;
-        // Data from supabase is YYYY-MM-DD string, parseISO handles it
         try {
             const start = parseISO(vac.start_date);
             const end = parseISO(vac.end_date);
@@ -34,18 +37,40 @@ export default function Dashboard() {
         })
         .sort((a, b) => compareAsc(parseISO(a.start_date), parseISO(b.start_date)));
 
-    const projectedCost = upcomingVacations.reduce((total, vac) => {
-        const emp = employees.find(e => e.id === vac.employee_id); // Supabase uses employee_id (snake_case)
-        if (!emp) return total;
-
+    const reportData = [...awayToday, ...upcomingVacations].map(vac => {
+        const emp = employees.find(e => e.id === vac.employee_id);
         const start = parseISO(vac.start_date);
         const end = parseISO(vac.end_date);
-        const msPerDay = 1000 * 60 * 60 * 24;
-        const days = Math.ceil((end - start) / msPerDay) + 1;
+        const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
+        const cost = (emp?.salary / 30 * days) * 1.3333;
 
-        const pay = (emp.salary / 30 * days) * 1.3333;
-        return total + pay;
-    }, 0);
+        return {
+            name: emp?.name || 'Desconhecido',
+            start,
+            end,
+            days,
+            cost
+        };
+    });
+
+    const projectedCost = reportData.reduce((acc, curr) => acc + curr.cost, 0);
+
+    const handleShareFinance = () => {
+        const text = `📊 *Resumo Financeiro - Skina Beer*\n\n` +
+            `💰 *Custo Previsto (Próx. 60 dias):* ${formatCurrency(projectedCost)}\n\n` +
+            `*Detalhes:*\n` +
+            reportData.map(d => `- ${d.name}: ${formatCurrency(d.cost)} (${d.days} dias)`).join('\n') +
+            `\n\nGerado pelo App Holiday Manager`;
+
+        openWhatsApp(text);
+    };
+
+    const reportColumns = [
+        { header: 'Funcionário', accessor: 'name', className: 'font-bold text-white' },
+        { header: 'Período', cell: (row) => `${format(row.start, 'dd/MM')} - ${format(row.end, 'dd/MM')}` },
+        { header: 'Dias', accessor: 'days' },
+        { header: 'Valor Est.', cell: (row) => formatCurrency(row.cost), className: 'text-green-400 font-medium' },
+    ];
 
     return (
         <div className="animate-in fade-in duration-500">
@@ -96,23 +121,30 @@ export default function Dashboard() {
                     <div className="text-xs font-medium text-zinc-500 mt-2">Próximos 60 dias</div>
                 </div>
 
-                <div className="card border-l-4 border-l-blue-500 hover:-translate-y-1 transition-transform cursor-default">
+                <div className="card border-l-4 border-l-blue-500 hover:-translate-y-1 transition-transform cursor-default group relative cursor-pointer" onClick={() => setShowReport(true)}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className="text-zinc-400 text-sm font-bold uppercase tracking-wider">Custo Previsto</p>
                             <h3 className="text-2xl font-bold mt-1 text-white">R$ {projectedCost.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</h3>
                         </div>
                         <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
-                            <DollarSign size={24} />
+                            <Wallet size={24} />
                         </div>
                     </div>
-                    <div className="text-xs font-medium text-zinc-500 mt-2">Pagamento de férias</div>
+                    <div className="text-xs font-medium text-zinc-500 mt-2 flex items-center gap-1">
+                        Ver relatório financeiro
+                        <FileBarChart size={12} className="text-zinc-400" />
+                    </div>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-white/10 p-1.5 rounded-full"><Share2 size={12} className="text-white" /></div>
+                    </div>
                 </div>
             </div>
 
             {/* Lists */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="card">
+                    {/* Same List Logic */}
                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <Palmtree size={20} className="text-orange-500" />
                         Quem está de férias?
@@ -142,6 +174,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="card">
+                    {/* Same List Logic */}
                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <TrendingUp size={20} className="text-emerald-500" />
                         Próximas Férias
@@ -170,6 +203,21 @@ export default function Dashboard() {
                     )}
                 </div>
             </div>
+
+            <ReportModal
+                isOpen={showReport}
+                onClose={() => setShowReport(false)}
+                title="Relatório Financeiro (60d)"
+                columns={reportColumns}
+                data={reportData}
+                onShare={handleShareFinance}
+                footer={
+                    <div className="flex justify-between items-center text-lg font-bold">
+                        <span>Total Previsto</span>
+                        <span className="text-primary">{formatCurrency(projectedCost)}</span>
+                    </div>
+                }
+            />
         </div>
     );
 }

@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { useCalendarController } from '../controllers/useCalendarController';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Calculator, X } from 'lucide-react';
-import { useApp } from '../context/AppContext'; // Access loading state directly if needed
+import { ChevronLeft, ChevronRight, Plus, Calculator, X, Share2, FileBarChart } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { openWhatsApp, formatCurrency } from '../utils/whatsapp';
+import ReportModal from '../components/ReportModal';
 
 export default function Calendar() {
     const { employees, vacations, calculateEstimation, scheduleVacation } = useCalendarController();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [showModal, setShowModal] = useState(false);
+    const [showReport, setShowReport] = useState(false);
 
     const [formData, setFormData] = useState({
         employeeId: '',
@@ -21,6 +24,8 @@ export default function Calendar() {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+    // ... (maintain existing handlers)
 
     const handleFormChange = (newPartialData) => {
         const newData = { ...formData, ...newPartialData };
@@ -52,6 +57,58 @@ export default function Calendar() {
         });
     };
 
+    const monthlyVacations = vacations.filter(vac => {
+        try {
+            const start = parseISO(vac.start_date);
+            const end = parseISO(vac.end_date);
+            // Check if vacation overlaps with current month view
+            return (start <= monthEnd && end >= monthStart);
+        } catch { return false; }
+    }).sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date));
+
+    // Prepare data for the ReportModal
+    const reportData = monthlyVacations.map(vac => {
+        const emp = employees.find(e => e.id === vac.employee_id);
+        const start = parseISO(vac.start_date);
+        const end = parseISO(vac.end_date);
+
+        // Calculate cost for this specific chunk? Or total cost?
+        // For complexity simplicity, let's just show dates.
+        // If needed, we can re-calculate estimated cost.
+
+        const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
+        const payEstimate = (emp?.salary / 30 * days) * 1.3333;
+
+        return {
+            name: emp?.name || 'Desconhecido',
+            role: emp?.role || '-',
+            start,
+            end,
+            cost: payEstimate
+        };
+    });
+
+    const reportColumns = [
+        { header: 'Funcionário', accessor: 'name', className: 'font-bold text-white' },
+        { header: 'Saída', cell: (row) => format(row.start, 'dd/MM') },
+        { header: 'Volta', cell: (row) => format(row.end, 'dd/MM') },
+        { header: 'Previsão Pgt', cell: (row) => formatCurrency(row.cost), className: 'text-zinc-400' }
+    ];
+
+    const handleShareSchedule = () => {
+        const monthName = format(currentDate, 'MMMM/yyyy', { locale: ptBR });
+        const text = `📅 *Escala de Férias - Skina Beer*\n` +
+            `🗓️ *Mês Referência:* ${monthName}\n\n` +
+            (monthlyVacations.length === 0 ? "Nenhuma férias agendada neste mês." :
+                monthlyVacations.map(v => {
+                    const emp = employees.find(e => e.id === v.employee_id);
+                    return `👤 *${emp?.name || 'Func.'}*\n   📅 ${format(parseISO(v.start_date), 'dd/MM')} a ${format(parseISO(v.end_date), 'dd/MM')}`;
+                }).join('\n\n')) +
+            `\n\n🔗 Acesse para ver detalhes: app.holidayskinabeer.com`;
+
+        openWhatsApp(text);
+    };
+
     return (
         <div className="flex flex-col h-full animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-8">
@@ -65,6 +122,17 @@ export default function Calendar() {
                         <span className="font-bold min-w-[160px] text-center uppercase tracking-wider text-sm">{format(currentDate, 'MMMM yyyy', { locale: ptBR })}</span>
                         <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-white/5 rounded-md transition-colors"><ChevronRight size={20} /></button>
                     </div>
+
+                    <button onClick={handleShareSchedule} className="btn-secondary flex items-center gap-2" title="Enviar Escala no WhatsApp">
+                        <Share2 size={20} />
+                        <span className="hidden md:inline">Enviar Escala</span>
+                    </button>
+
+                    <button onClick={() => setShowReport(true)} className="btn-secondary flex items-center gap-2" title="Relatório da Escala">
+                        <FileBarChart size={20} />
+                        <span className="hidden md:inline">Relatório</span>
+                    </button>
+
                     <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
                         <Plus size={20} />
                         <span>Agendar</span>
@@ -119,6 +187,15 @@ export default function Calendar() {
                     ))}
                 </div>
             </div>
+
+            <ReportModal
+                isOpen={showReport}
+                onClose={() => setShowReport(false)}
+                title={`Escala: ${format(currentDate, 'MMMM yyyy', { locale: ptBR })}`}
+                columns={reportColumns}
+                data={reportData}
+                onShare={handleShareSchedule}
+            />
 
             {/* Modal Overlay */}
             {showModal && (
