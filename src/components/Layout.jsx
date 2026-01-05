@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, Calendar, Beer, LogOut, Lock, User, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Beer, LogOut, Lock, User, Menu, X, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import ChangePasswordModal from './ChangePasswordModal';
 import UserProfileModal from './UserProfileModal';
@@ -57,6 +57,10 @@ export default function Layout({ children }) {
                 <Link to="/calendar" className={linkClass('/calendar')} onClick={() => setIsSidebarOpen(false)}>
                     <Calendar size={20} />
                     <span>Férias</span>
+                </Link>
+                <Link to="/masters" className={linkClass('/masters')} onClick={() => setIsSidebarOpen(false)}>
+                    <ShieldCheck size={20} />
+                    <span>Admins</span>
                 </Link>
             </nav>
 
