@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useMasterController } from '../controllers/useMasterController';
-import { Plus, Search, ShieldCheck, Mail, Edit2, Trash2, Loader2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, ShieldCheck, Mail, Edit2, Trash2, Loader2, X, AlertTriangle, Key } from 'lucide-react';
+import { hashPassword } from '../utils/auth';
 
 export default function Masters() {
     const { masters, loading, addMaster, updateMaster, deleteMaster } = useMasterController();
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingMaster, setEditingMaster] = useState(null);
-    const [formData, setFormData] = useState({ name: '', email: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
 
     const filteredMasters = masters.filter(m =>
         m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -16,21 +17,36 @@ export default function Masters() {
 
     const handleEdit = (master) => {
         setEditingMaster(master);
-        setFormData({ name: master.name, email: master.email });
+        setFormData({ name: master.name, email: master.email, password: '' }); // Password empty on edit
         setShowModal(true);
     };
 
     const handleAddNew = () => {
         setEditingMaster(null);
-        setFormData({ name: '', email: '' });
+        setFormData({ name: '', email: '', password: '' });
         setShowModal(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        let dataToSave = {
+            name: formData.name,
+            email: formData.email
+        };
+
+        // Only update password if provided
+        if (formData.password) {
+            dataToSave.password = await hashPassword(formData.password);
+        } else if (!editingMaster) {
+            // New user must have password
+            alert('Senha é obrigatória para novos administradores.');
+            return;
+        }
+
         const success = editingMaster
-            ? await updateMaster(editingMaster.id, formData)
-            : await addMaster(formData);
+            ? await updateMaster(editingMaster.id, dataToSave)
+            : await addMaster(dataToSave);
 
         if (success) {
             setShowModal(false);
@@ -140,6 +156,22 @@ export default function Masters() {
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                                     required
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                                    {editingMaster ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}
+                                </label>
+                                <div className="relative">
+                                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                                    <input
+                                        type="password"
+                                        className="input-field w-full pl-10"
+                                        value={formData.password}
+                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                        placeholder={editingMaster ? '••••••' : 'Senha de acesso'}
+                                    />
+                                </div>
                             </div>
 
                             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-500 text-xs flex gap-2 items-start">

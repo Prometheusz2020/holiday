@@ -97,7 +97,7 @@ export default function Layout({ children }) {
     );
 
     return (
-        <div className="flex h-screen bg-background text-white overflow-hidden font-sans">
+        <div className="flex h-screen md:h-screen bg-background text-white overflow-hidden font-sans supports-[height:100dvh]:h-[100dvh]">
             {/* Desktop Sidebar */}
             <aside className="hidden md:flex w-64 flex-shrink-0 bg-surface border-r border-white/5 flex-col shadow-2xl z-20">
                 <SidebarContent />
