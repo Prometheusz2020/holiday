@@ -103,7 +103,7 @@ export default function Dashboard() {
     ];
 
     return (
-        <div className="animate-in fade-in duration-500">
+        <div className="duration-500">
             <div className="mb-10">
                 <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">Painel Geral</h2>
                 <p className="text-zinc-400 mt-2 text-lg">Visão geral da equipe e custos</p>

@@ -70,7 +70,7 @@ export function useTimeClockController() {
 
             if (error) {
                 console.error("verifyAdminAccess Error:", error);
-                setMessage({ type: 'error', text: 'Erro ao verificar permissão. Tente novamente.' });
+                setMessage({ type: 'error', text: `Erro: ${error.message || 'Verificação falhou'}` });
                 return false;
             }
 

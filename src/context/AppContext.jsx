@@ -11,10 +11,10 @@ export function AppProvider({ children }) {
     const [liveAttendants, setLiveAttendants] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchData = async () => {
+    const fetchData = async (silent = false) => {
         if (!session?.establishment?.id) return; // Wait for session
 
-        setLoading(true);
+        if (!silent) setLoading(true);
         try {
             const { data: empData, error: empError } = await supabase
                 .from('employees')
@@ -64,7 +64,7 @@ export function AppProvider({ children }) {
         } catch (error) {
             console.error("Error fetching data:", error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -85,7 +85,7 @@ export function AppProvider({ children }) {
                 },
                 (payload) => {
                     console.log("New time log received, refreshing data...", payload);
-                    fetchData();
+                    fetchData(true);
                 }
             )
             .subscribe();
