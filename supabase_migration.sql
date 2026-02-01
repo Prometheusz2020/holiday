@@ -228,3 +228,32 @@ BEGIN
     RETURN json_build_object('success', true, 'message', 'Ponto registrado!');
 END;
 $$;
+
+-- 11. FIX: Enable Realtime for time_logs and Kiosk Admin Verification
+-- Verify Admin PIN securely (bypassing RLS)
+CREATE OR REPLACE FUNCTION verify_admin_pin(
+    p_pin_code TEXT,
+    p_establishment_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_exists BOOLEAN;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1
+        FROM employees
+        WHERE pin_code = p_pin_code
+        AND establishment_id = p_establishment_id
+        AND role IN ('CEO', 'Gerente')
+    ) INTO v_exists;
+
+    RETURN v_exists;
+END;
+$$;
+
+-- Enable Realtime
+-- NOTE: You may need to run this command separately in the SQL Editor if it fails here due to permission
+-- alter publication supabase_realtime add table time_logs;

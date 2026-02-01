@@ -60,24 +60,21 @@ export function useTimeClockController() {
 
         setLoading(true);
         try {
-            // Check if PIN belongs to a CEO or Gerente OF THIS ESTABLISHMENT
-            const { data, error } = await supabase
-                .from('employees')
-                .select('id')
-                .eq('pin_code', pin)
-                .eq('establishment_id', session.establishment.id)
-                .in('role', ['CEO', 'Gerente'])
-                .maybeSingle();
+            // Check if PIN belongs to a CEO or Gerente OF THIS ESTABLISHMENT using secure RPC
+            const { data: isAdmin, error } = await supabase.rpc('verify_admin_pin', {
+                p_pin_code: pin,
+                p_establishment_id: session.establishment.id
+            });
 
             setLoading(false);
 
             if (error) {
                 console.error("verifyAdminAccess Error:", error);
-                setMessage({ type: 'error', text: 'Erro ao verificar permissão.' });
+                setMessage({ type: 'error', text: 'Erro ao verificar permissão. Tente novamente.' });
                 return false;
             }
 
-            if (data) {
+            if (isAdmin) {
                 return true;
             } else {
                 setMessage({ type: 'error', text: 'PIN não autorizado.' });
