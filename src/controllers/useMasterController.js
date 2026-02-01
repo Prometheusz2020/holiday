@@ -8,11 +8,14 @@ export function useMasterController() {
     const { session } = useAuth();
 
     const fetchMasters = useCallback(async () => {
+        if (!session?.establishment?.id) return;
+
         try {
             setLoading(true);
             const { data, error } = await supabase
                 .from('administrators')
                 .select('*')
+                .eq('establishment_id', session.establishment.id)
                 .order('name');
 
             if (error) throw error;
@@ -22,13 +25,15 @@ export function useMasterController() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [session]);
 
     const addMaster = async (masterData) => {
+        if (!session?.establishment?.id) return false;
+
         try {
             const { data, error } = await supabase
                 .from('administrators')
-                .insert([{ ...masterData }])
+                .insert([{ ...masterData, establishment_id: session.establishment.id }])
                 .select();
 
             if (error) throw error;

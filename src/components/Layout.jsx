@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, Calendar, Beer, LogOut, Lock, User, Menu, X, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Briefcase, LogOut, Lock, User, Menu, X, ShieldCheck, Clock, ClipboardList, Ban } from 'lucide-react';
 import { useState } from 'react';
 import ChangePasswordModal from './ChangePasswordModal';
 import UserProfileModal from './UserProfileModal';
@@ -25,11 +25,15 @@ export default function Layout({ children }) {
         <>
             <div className="p-8 flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/20">
-                    <Beer className="text-black fill-black" size={24} />
+                    <Briefcase className="text-black fill-black" size={24} />
                 </div>
                 <div>
-                    <h1 className="font-bold text-xl tracking-tight uppercase">Skina Beer</h1>
-                    <p className="text-[10px] text-zinc-500 tracking-wider">RESTAURANTE</p>
+                    <h1 className="font-bold text-xl tracking-tight uppercase line-clamp-1" title={session?.establishment?.name}>
+                        {session?.establishment?.name || 'Carregando...'}
+                    </h1>
+                    <p className="text-[10px] text-zinc-500 tracking-wider uppercase">
+                        {session?.establishment?.business_type || 'Estabelecimento'}
+                    </p>
                 </div>
             </div>
 
@@ -58,9 +62,20 @@ export default function Layout({ children }) {
                     <Calendar size={20} />
                     <span>Férias</span>
                 </Link>
+                <Link to="/timesheet" className={linkClass('/timesheet')} onClick={() => setIsSidebarOpen(false)}>
+                    <ClipboardList size={20} />
+                    <span>Frequência</span>
+                </Link>
                 <Link to="/masters" className={linkClass('/masters')} onClick={() => setIsSidebarOpen(false)}>
                     <ShieldCheck size={20} />
                     <span>Admins</span>
+                </Link>
+
+                <div className="h-px bg-white/5 my-2"></div>
+
+                <Link to="/ponto" className={linkClass('/ponto')} onClick={() => setIsSidebarOpen(false)} target="_blank">
+                    <Clock size={20} />
+                    <span>Abrir Quiosque</span>
                 </Link>
             </nav>
 
@@ -91,7 +106,7 @@ export default function Layout({ children }) {
             </div>
 
             <div className="p-4 text-xs text-center text-zinc-600 border-t border-white/5">
-                v1.4.0 • Skina Beer
+                v1.4.0 • {session?.establishment?.name || 'Gestor360'}
             </div>
         </>
     );
@@ -107,9 +122,11 @@ export default function Layout({ children }) {
             <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-surface border-b border-white/5 flex items-center justify-between px-4 z-30">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/20">
-                        <Beer className="text-black fill-black" size={18} />
+                        <Briefcase className="text-black fill-black" size={18} />
                     </div>
-                    <span className="font-bold text-lg uppercase tracking-tight">Skina Beer</span>
+                    <span className="font-bold text-lg uppercase tracking-tight">
+                        {session?.establishment?.name || 'Gestor360'}
+                    </span>
                 </div>
                 <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-white">
                     {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -128,9 +145,28 @@ export default function Layout({ children }) {
 
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto relative bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/50 via-background to-background mt-16 md:mt-0">
-                <div className="max-w-6xl mx-auto p-4 md:p-12">
-                    {children}
-                </div>
+                {session?.establishment?.is_blocked ? (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-in zoom-in-95">
+                        <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+                            <Ban size={48} className="text-red-500" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white mb-2">Acesso Temporariamente Bloqueado</h1>
+                        <p className="text-zinc-400 max-w-md">
+                            O acesso deste estabelecimento foi suspenso. Entre em contato com a administração do Gestor360 para regularizar a situação.
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        {session?.establishment?.payment_warning && (
+                            <div className="bg-orange-500 text-white font-bold text-sm py-2 px-4 text-center animate-pulse relative z-50">
+                                ⚠️ Aviso de Pagamento: Sua mensalidade está em aberto. Regularize para evitar bloqueio.
+                            </div>
+                        )}
+                        <div className="max-w-6xl mx-auto p-4 md:p-12">
+                            {children}
+                        </div>
+                    </>
+                )}
             </main>
 
             {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Beer, Loader2, Info } from 'lucide-react';
+import { Briefcase, Loader2, Info } from 'lucide-react';
 
 export default function Login() {
     const { signIn, session } = useAuth();
@@ -39,10 +39,11 @@ export default function Login() {
             <div className="card w-full max-w-md border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300">
                 <div className="text-center mb-8">
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
-                        <Beer className="text-primary" size={40} />
+                        <Briefcase className="text-primary" size={40} />
                     </div>
-                    <h1 className="text-3xl font-bold text-white uppercase tracking-wider">Skina Beer</h1>
-                    <p className="text-zinc-500 text-sm mt-1">Gestão de Férias</p>
+                    <h1 className="text-4xl font-extrabold text-white tracking-tighter">
+                        Gestor<span className="text-primary">360</span>
+                    </h1>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -89,6 +90,7 @@ export default function Login() {
                     <p className="text-xs text-zinc-600">
                         Esqueceu a senha? Solicite ao administrador.
                     </p>
+
                 </div>
             </div>
         </div>

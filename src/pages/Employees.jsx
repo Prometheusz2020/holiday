@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useEmployeeController } from '../controllers/useEmployeeController';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, DollarSign, Calendar as CalIcon, Loader2, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Calendar as CalIcon, Loader2, Pencil, X, Key } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -15,17 +15,27 @@ export default function Employees() {
         name: '',
         role: 'Garçom',
         salary: '',
-        hireDate: ''
+        hireDate: '',
+        pinCode: ''
     });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        // For security, if pinCode is empty during edit, maybe we shouldn't send it?
+        // But for simplicity, let's just send what we have. API/Controller should handle partial updates if needed,
+        // or we assume overwrite. If creating, it's fine.
+
+        let dataToSend = { ...formData };
+        if (editingId && !dataToSend.pinCode) {
+            delete dataToSend.pinCode; // Don't wipe PIN if empty on edit
+        }
+
         if (editingId) {
-            if (await editEmployee(editingId, formData)) {
+            if (await editEmployee(editingId, dataToSend)) {
                 resetForm();
             }
         } else {
-            if (createEmployee(formData)) {
+            if (createEmployee(dataToSend)) {
                 resetForm();
             }
         }
@@ -36,14 +46,15 @@ export default function Employees() {
             name: emp.name,
             role: emp.role,
             salary: emp.salary,
-            hireDate: emp.hire_date || ''
+            hireDate: emp.hire_date || '',
+            pinCode: '' // Don't show existing PIN for security, let them set new one
         });
         setEditingId(emp.id);
         setShowForm(true);
     };
 
     const resetForm = () => {
-        setFormData({ name: '', role: 'Garçom', salary: '', hireDate: '' });
+        setFormData({ name: '', role: 'Garçom', salary: '', hireDate: '', pinCode: '' });
         setEditingId(null);
         setShowForm(false);
     };
@@ -133,6 +144,23 @@ export default function Employees() {
                                 value={formData.hireDate}
                                 onChange={e => setFormData({ ...formData, hireDate: e.target.value })}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-zinc-400">PIN de Acesso (Ponto)</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-zinc-500"><Key size={16} /></span>
+                                <input
+                                    className="input-field pl-10"
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    placeholder={editingId ? "Preencha para alterar" : "Ex: 1234"}
+                                    value={formData.pinCode}
+                                    onChange={e => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '') })}
+                                />
+                            </div>
+                            <p className="text-xs text-zinc-500">4 a 6 dígitos numéricos.</p>
                         </div>
 
                         <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-white/5">

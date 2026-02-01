@@ -1,13 +1,15 @@
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { format, isWithinInterval, parseISO, isFuture, addDays, compareAsc, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2, Share2, Wallet, FileBarChart } from 'lucide-react';
+import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2, Share2, Wallet, FileBarChart, Clock } from 'lucide-react';
 import { formatCurrency, openWhatsApp } from '../utils/whatsapp';
 import { useState } from 'react';
 import ReportModal from '../components/ReportModal';
 
 export default function Dashboard() {
-    const { employees, vacations, loading } = useApp();
+    const { employees, vacations, loading, liveAttendants } = useApp();
+    const { session } = useAuth();
     const [showReport, setShowReport] = useState(false);
     const today = new Date();
 
@@ -18,7 +20,6 @@ export default function Dashboard() {
             </div>
         );
     }
-
     const awayToday = vacations.filter(vac => {
         if (!vac.start_date || !vac.end_date) return false;
         try {
@@ -42,6 +43,7 @@ export default function Dashboard() {
         const start = parseISO(vac.start_date);
         const end = parseISO(vac.end_date);
         const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
+        // Calculation: Salary / 30 * Days * 1.3333 (1/3 vacation bonus)
         const cost = (emp?.salary / 30 * days) * 1.3333;
 
         return {
@@ -49,14 +51,15 @@ export default function Dashboard() {
             start,
             end,
             days,
-            cost
+            cost: cost || 0
         };
     });
 
     const projectedCost = reportData.reduce((acc, curr) => acc + curr.cost, 0);
 
     const handleShareFinance = () => {
-        const text = `📊 *Resumo Financeiro - Skina Beer*\n\n` +
+        const estName = session?.establishment?.name || 'Skina Beer';
+        const text = `📊 *Resumo Financeiro - ${estName}*\n\n` +
             `💰 *Custo Previsto (Próx. 60 dias):* ${formatCurrency(projectedCost)}\n\n` +
             `*Detalhes:*\n` +
             reportData.map(d => `- ${d.name}: ${formatCurrency(d.cost)} (${d.days} dias)`).join('\n') +
@@ -80,7 +83,7 @@ export default function Dashboard() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
                 <div className="card border-l-4 border-l-primary hover:-translate-y-1 transition-transform cursor-default">
                     <div className="flex justify-between items-start mb-2">
                         <div>
@@ -137,6 +140,26 @@ export default function Dashboard() {
                     </div>
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="bg-white/10 p-1.5 rounded-full"><Share2 size={12} className="text-white" /></div>
+                    </div>
+                </div>
+
+                <div className="card border-l-4 border-l-green-500 hover:-translate-y-1 transition-transform cursor-default">
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <p className="text-zinc-400 text-sm font-bold uppercase tracking-wider">Trabalhando Agora</p>
+                            <h3 className="text-2xl font-bold mt-1 text-white">{liveAttendants.length} <span className="text-sm font-normal text-zinc-500">online</span></h3>
+                        </div>
+                        <div className="p-3 bg-green-500/10 rounded-xl text-green-500 animate-pulse">
+                            <Clock size={24} />
+                        </div>
+                    </div>
+                    <div className="text-xs font-medium text-zinc-500 mt-2 flex flex-wrap gap-1">
+                        {liveAttendants.length > 0 ? (
+                            employees.filter(e => liveAttendants.includes(e.id)).slice(0, 3).map(e => (
+                                <span key={e.id} className="bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded border border-green-500/20">{e.name.split(' ')[0]}</span>
+                            ))
+                        ) : 'Ninguém registrado'}
+                        {liveAttendants.length > 3 && <span className="text-zinc-500">+{liveAttendants.length - 3}</span>}
                     </div>
                 </div>
             </div>

@@ -12,7 +12,16 @@ export function AuthProvider({ children }) {
         const storedSession = localStorage.getItem('holiday_session');
         if (storedSession) {
             try {
-                setSession(JSON.parse(storedSession));
+                const parsed = JSON.parse(storedSession);
+
+                // Validate New Session Structure
+                if (parsed?.user?.role !== 'master' && (!parsed.profile || !parsed.establishment)) {
+                    console.warn("Legacy session detected. Clearing.");
+                    localStorage.removeItem('holiday_session');
+                    setSession(null);
+                } else {
+                    setSession(parsed);
+                }
             } catch (e) {
                 console.error("Failed to parse session", e);
                 localStorage.removeItem('holiday_session');
@@ -23,37 +32,41 @@ export function AuthProvider({ children }) {
 
     const signIn = async (email, password) => {
         try {
-            // Import dynamically or use the global utility function
-            const { hashPassword } = await import('../utils/auth');
-            const hashedPassword = await hashPassword(password);
+            // Standard Supabase Auth
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-            const { data, error } = await supabase
-                .from('administrators')
-                .select('*')
-                .eq('email', email)
-                .eq('password', hashedPassword)
-                .single();
-
-            if (error || !data) {
+            if (error) {
+                console.error("Auth Error:", error);
                 return { error: 'Email ou senha inválidos.' };
             }
 
-            // Create Master Session
-            const newSession = {
-                user: {
-                    id: data.id,
-                    email: data.email,
-                    user_metadata: {
-                        full_name: data.name
-                    },
-                    role: 'master'
+            // Fetch Profile & Establishment
+            if (data.user) {
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*, establishment:establishments(*)') // Join establishment
+                    .eq('id', data.user.id)
+                    .single();
+
+                if (profileError || !profile) {
+                    console.error("Profile Error:", profileError);
+                    await supabase.auth.signOut();
+                    return { error: 'Perfil de usuário não encontrado.' };
                 }
-            };
 
-            setSession(newSession);
-            localStorage.setItem('holiday_session', JSON.stringify(newSession));
-            return { data: newSession, error: null };
+                const userSession = {
+                    user: data.user,
+                    profile: profile,
+                    establishment: profile.establishment
+                };
 
+                setSession(userSession);
+                localStorage.setItem('holiday_session', JSON.stringify(userSession));
+                return { data: userSession, error: null };
+            }
         } catch (err) {
             console.error(err);
             return { error: 'Erro interno de autenticação.' };
@@ -61,6 +74,7 @@ export function AuthProvider({ children }) {
     };
 
     const signOut = async () => {
+        await supabase.auth.signOut();
         localStorage.removeItem('holiday_session');
         setSession(null);
         return { error: null };
