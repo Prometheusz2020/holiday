@@ -56,8 +56,10 @@ export function AppProvider({ children }) {
                 });
             }
 
-            const activeIds = Object.keys(statusMap).filter(id => statusMap[id].type === 'IN');
-            setLiveAttendants(activeIds);
+            const activeWorkers = Object.keys(statusMap)
+                .filter(id => statusMap[id].type === 'IN')
+                .map(id => statusMap[id]);
+            setLiveAttendants(activeWorkers);
 
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -67,7 +69,30 @@ export function AppProvider({ children }) {
     };
 
     useEffect(() => {
-        if (session) fetchData();
+        if (!session?.establishment?.id) return;
+
+        fetchData();
+
+        const channel = supabase
+            .channel('time-sheet-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'time_logs',
+                    filter: `establishment_id=eq.${session.establishment.id}`
+                },
+                (payload) => {
+                    console.log("New time log received, refreshing data...", payload);
+                    fetchData();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [session]);
 
     const addEmployee = async (data) => {

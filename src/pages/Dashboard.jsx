@@ -11,6 +11,7 @@ export default function Dashboard() {
     const { employees, vacations, loading, liveAttendants } = useApp();
     const { session } = useAuth();
     const [showReport, setShowReport] = useState(false);
+    const [showLiveReport, setShowLiveReport] = useState(false);
     const today = new Date();
 
     if (loading) {
@@ -73,6 +74,32 @@ export default function Dashboard() {
         { header: 'Período', cell: (row) => `${format(row.start, 'dd/MM')} - ${format(row.end, 'dd/MM')}` },
         { header: 'Dias', accessor: 'days' },
         { header: 'Valor Est.', cell: (row) => formatCurrency(row.cost), className: 'text-green-400 font-medium' },
+    ];
+
+    const liveData = liveAttendants.map(log => {
+        const emp = employees.find(e => e.id === log.employee_id);
+        return {
+            name: emp?.name || 'Desconhecido',
+            role: emp?.role || '-',
+            entry: parseISO(log.timestamp),
+            employee_id: log.employee_id
+        };
+    });
+
+    const handleShareLive = () => {
+        const estName = session?.establishment?.name || 'Skina Beer';
+        const text = `🕒 *Quem está trabalhando? - ${estName}*\n\n` +
+            `👥 *Total:* ${liveData.length} pessoas\n\n` +
+            `*Lista:*\n` +
+            liveData.map(d => `- ${d.name} (${d.role})`).join('\n') +
+            `\n\nGerado pelo App Holiday Manager`;
+        openWhatsApp(text);
+    };
+
+    const liveColumns = [
+        { header: 'Funcionário', accessor: 'name', className: 'font-bold text-white' },
+        { header: 'Função', accessor: 'role', className: 'text-zinc-400 text-xs uppercase' },
+        { header: 'Entrada', cell: (row) => format(row.entry, 'HH:mm'), className: 'text-green-400 font-mono' },
     ];
 
     return (
@@ -143,7 +170,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <div className="card border-l-4 border-l-green-500 hover:-translate-y-1 transition-transform cursor-default">
+                <div className="card border-l-4 border-l-green-500 hover:-translate-y-1 transition-transform cursor-pointer group relative" onClick={() => setShowLiveReport(true)}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className="text-zinc-400 text-sm font-bold uppercase tracking-wider">Trabalhando Agora</p>
@@ -155,11 +182,14 @@ export default function Dashboard() {
                     </div>
                     <div className="text-xs font-medium text-zinc-500 mt-2 flex flex-wrap gap-1">
                         {liveAttendants.length > 0 ? (
-                            employees.filter(e => liveAttendants.includes(e.id)).slice(0, 3).map(e => (
+                            employees.filter(e => liveAttendants.some(l => l.employee_id === e.id)).slice(0, 3).map(e => (
                                 <span key={e.id} className="bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded border border-green-500/20">{e.name.split(' ')[0]}</span>
                             ))
                         ) : 'Ninguém registrado'}
                         {liveAttendants.length > 3 && <span className="text-zinc-500">+{liveAttendants.length - 3}</span>}
+                    </div>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-white/10 p-1.5 rounded-full"><Share2 size={12} className="text-white" /></div>
                     </div>
                 </div>
             </div>
@@ -238,6 +268,21 @@ export default function Dashboard() {
                     <div className="flex justify-between items-center text-lg font-bold">
                         <span>Total Previsto</span>
                         <span className="text-primary">{formatCurrency(projectedCost)}</span>
+                    </div>
+                }
+            />
+
+            <ReportModal
+                isOpen={showLiveReport}
+                onClose={() => setShowLiveReport(false)}
+                title="Quem está trabalhando?"
+                columns={liveColumns}
+                data={liveData}
+                onShare={handleShareLive}
+                footer={
+                    <div className="flex justify-between items-center text-lg font-bold">
+                        <span>Total Online</span>
+                        <span className="text-green-500">{liveAttendants.length}</span>
                     </div>
                 }
             />
