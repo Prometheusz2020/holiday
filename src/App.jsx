@@ -11,6 +11,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Ponto from './pages/Ponto';
 import RegisterEstablishment from './pages/RegisterEstablishment';
+import TimeSheetPrint from './pages/TimeSheetPrint';
 import './index.css';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="/employees" element={<PrivateRoute><Layout><Employees /></Layout></PrivateRoute>} />
             <Route path="/calendar" element={<PrivateRoute><Layout><Calendar /></Layout></PrivateRoute>} />
             <Route path="/timesheet" element={<PrivateRoute><Layout><TimeSheet /></Layout></PrivateRoute>} />
+            <Route path="/timesheet/print" element={<PrivateRoute><TimeSheetPrint /></PrivateRoute>} />
             <Route path="/masters" element={<PrivateRoute><Layout><Masters /></Layout></PrivateRoute>} />
           </Routes>
         </AppProvider>

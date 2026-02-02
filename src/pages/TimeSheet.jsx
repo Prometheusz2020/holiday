@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FileBarChart, Filter, Loader2, Share2, Clock, CalendarDays, Plus, Trash2, Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileBarChart, Filter, Loader2, Share2, Clock, CalendarDays, Plus, Trash2, Pencil, Printer } from 'lucide-react';
 import { format, subMonths, addMonths, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTimeSheetController } from '../controllers/useTimeSheetController';
@@ -40,6 +40,7 @@ export default function TimeSheet() {
                 entryTime = null;
             }
         });
+
         return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60, totalMinutes };
     };
 
@@ -141,6 +142,15 @@ export default function TimeSheet() {
                         <Plus size={20} />
                         <span>Ajuste Manual</span>
                     </button>
+                    {selectedEmployeeId !== 'ALL' && (
+                        <button
+                            onClick={() => window.open(`/timesheet/print?employeeId=${selectedEmployeeId}&date=${format(selectedDate, 'yyyy-MM-dd')}`, '_blank')}
+                            className="btn-secondary flex items-center gap-2"
+                        >
+                            <Printer size={20} />
+                            <span className="hidden md:inline">Imprimir Espelho</span>
+                        </button>
+                    )}
                     {/* ... (Share button unchanged) ... */}
                 </div>
             </div>
@@ -218,9 +228,11 @@ export default function TimeSheet() {
                                 {selectedEmployeeId !== 'ALL' && (
                                     <div className="flex items-center gap-2 text-sm font-medium bg-zinc-950 px-3 py-1 rounded-full border border-white/10">
                                         <span className="text-zinc-500">Total:</span>
-                                        <span className={duration.totalMinutes > 0 ? "text-white" : "text-zinc-500"}>
-                                            {formatDuration(duration)}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className={duration.totalMinutes > 0 ? "text-white" : "text-zinc-500"}>
+                                                {formatDuration(duration)}
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                             </div>

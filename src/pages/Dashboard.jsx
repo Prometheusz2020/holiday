@@ -1,8 +1,9 @@
 import { useApp } from '../context/AppContext';
+import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { format, isWithinInterval, parseISO, isFuture, addDays, compareAsc, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2, Share2, Wallet, FileBarChart, Clock } from 'lucide-react';
+import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2, Share2, Wallet, FileBarChart, Clock, LogOut } from 'lucide-react';
 import { formatCurrency, openWhatsApp } from '../utils/whatsapp';
 import { useState } from 'react';
 import ReportModal from '../components/ReportModal';
@@ -96,10 +97,44 @@ export default function Dashboard() {
         openWhatsApp(text);
     };
 
+    const handleForceLogout = async (employeeId) => {
+        if (!confirm('Deseja dar saída manual para este funcionário agora?')) return;
+
+        try {
+            // We can register a manual OUT using the same RPC or direct insert
+            // Using direct insert is easier here since we don't have the PIN
+            const { error } = await supabase.from('time_logs').insert([{
+                employee_id: employeeId,
+                type: 'OUT',
+                timestamp: new Date().toISOString(),
+                establishment_id: session.establishment.id
+            }]);
+
+            if (error) throw error;
+            // The subscription in AppContext will picking this up and refresh silently!
+        } catch (err) {
+            console.error("Error logging out:", err);
+            alert('Erro ao dar saída.');
+        }
+    };
+
     const liveColumns = [
         { header: 'Funcionário', accessor: 'name', className: 'font-bold text-white' },
         { header: 'Função', accessor: 'role', className: 'text-zinc-400 text-xs uppercase' },
         { header: 'Entrada', cell: (row) => format(row.entry, 'HH:mm'), className: 'text-green-400 font-mono' },
+        {
+            header: 'Ação',
+            cell: (row) => (
+                <button
+                    onClick={() => handleForceLogout(row.employee_id)}
+                    className="p-2 bg-red-500/10 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-colors"
+                    title="Dar Saída Manual"
+                >
+                    <LogOut size={14} />
+                </button>
+            ),
+            className: 'w-10'
+        }
     ];
 
     return (
