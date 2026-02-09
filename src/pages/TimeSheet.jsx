@@ -64,11 +64,16 @@ export default function TimeSheet() {
         end: endOfMonth(selectedDate)
     });
 
+    const today = new Date(); // Get current date
+
     // Calculate Totals
     let monthlyMinutes = 0;
     
-    // Sort reverse to show latest first
-    const dailyData = daysInMonth.sort((a, b) => b - a).map(date => {
+    // Sort reverse to show latest first and FILTER future dates
+    const dailyData = daysInMonth
+        .filter(date => date <= today) // Hide future dates
+        .sort((a, b) => b - a)
+        .map(date => {
         const dateKey = format(date, 'yyyy-MM-dd');
         const dayLogs = groupedLogs[dateKey] || [];
         const dayStatus = dailyStatuses.find(s => s.date === dateKey);
@@ -158,7 +163,18 @@ export default function TimeSheet() {
 
     const handleStatusChange = async (dateStr, newStatus) => {
         if (selectedEmployeeId === 'ALL') return alert('Selecione um funcionário para alterar o status.');
-        await updateDailyStatus(selectedEmployeeId, dateStr, newStatus);
+        
+        const actionName = newStatus === 'REMOVE' ? 'remover o status' : `definir como ${newStatus}`;
+        if (!confirm(`Tem certeza que deseja ${actionName} para o dia ${format(parseISO(dateStr), 'dd/MM')}?`)) {
+            return; // Cancelled
+        }
+
+        const success = await updateDailyStatus(selectedEmployeeId, dateStr, newStatus);
+        if (success) {
+            // Optional: Success feedback could go here
+        } else {
+            alert('Erro ao atualizar status. Tente novamente.');
+        }
     };
 
     return (
