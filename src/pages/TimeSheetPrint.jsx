@@ -11,6 +11,7 @@ export default function TimeSheetPrint() {
     const { session } = useAuth();
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState([]);
+    const [dailyStatuses, setDailyStatuses] = useState([]); // Added
     const [employee, setEmployee] = useState(null);
 
     const employeeId = searchParams.get('employeeId');
@@ -48,6 +49,17 @@ export default function TimeSheetPrint() {
                 .order('timestamp', { ascending: true });
 
             setLogs(logData || []);
+
+            // 3. Fetch Daily Statuses
+            const { data: statusData } = await supabase
+                .from('daily_statuses')
+                .select('*')
+                .eq('establishment_id', session.establishment.id)
+                .eq('employee_id', employeeId)
+                .gte('date', start)
+                .lte('date', end);
+            
+            setDailyStatuses(statusData || []);
 
         } catch (error) {
             console.error("Error fetching print data:", error);
@@ -152,6 +164,8 @@ export default function TimeSheetPrint() {
                         {daysInMonth.map(date => {
                             const dateKey = format(date, 'yyyy-MM-dd');
                             const dayLogs = logs.filter(l => format(new Date(l.timestamp), 'yyyy-MM-dd') === dateKey);
+                            const dayStatus = dailyStatuses.find(s => s.date === dateKey); // Status
+                            
                             const duration = calculateDailyTotal(dayLogs);
 
                             monthlyMinutes += duration.totalMinutes;
@@ -166,8 +180,16 @@ export default function TimeSheetPrint() {
                                     <td className="border border-gray-300 p-2 font-mono">
                                         {format(date, 'dd/MM')} <span className="text-gray-400 text-xs ml-1">{format(date, 'EEE', { locale: ptBR })}</span>
                                     </td>
-                                    <td className="border border-gray-300 p-2 font-mono text-green-700">{ins}</td>
-                                    <td className="border border-gray-300 p-2 font-mono text-red-700">{outs}</td>
+                                    {dayStatus ? (
+                                        <td colSpan={2} className="border border-gray-300 p-2 font-bold text-center bg-gray-50 text-gray-500 tracking-wider">
+                                            {dayStatus.status}
+                                        </td>
+                                    ) : (
+                                        <>
+                                            <td className="border border-gray-300 p-2 font-mono text-green-700">{ins}</td>
+                                            <td className="border border-gray-300 p-2 font-mono text-red-700">{outs}</td>
+                                        </>
+                                    )}
                                     <td className="border border-gray-300 p-2 text-right font-bold">
                                         {formatDuration(duration)}
                                     </td>

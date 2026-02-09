@@ -17,19 +17,19 @@ export default function TimeSheet() {
         selectedEmployeeId,
         setSelectedEmployeeId,
         addTimeLog,
-        updateTimeLog, // Added
-        deleteTimeLog
+        updateTimeLog,
+        deleteTimeLog,
+        dailyStatuses, // Added
+        updateDailyStatus // Added
     } = useTimeSheetController();
 
     const [showAddModal, setShowAddModal] = useState(false);
-    const [editingLog, setEditingLog] = useState(null); // Added state
+    const [editingLog, setEditingLog] = useState(null);
 
     // ... (helper functions calculateHours, formatDuration, groupedLogs, monthlyMinutes, dailyData, monthlyTotal, handleShare) ...
 
     const calculateHours = (dayLogs) => {
         let sorted = [...dayLogs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        // ... (rest of logic same as original file, just ensuring it's not deleted) ... 
-        // Re-implementing simplified for replace context:
         let totalMinutes = 0;
         let entryTime = null;
         sorted.forEach(log => {
@@ -59,16 +59,29 @@ export default function TimeSheet() {
 
     // Calculate Totals
     let monthlyMinutes = 0;
-    const dailyData = Object.keys(groupedLogs).sort().reverse().map(dateKey => {
-        const dayLogs = groupedLogs[dateKey];
-        // Calculate daily total ONLY if filtered by employee (otherwise mixing people makes no sense for total)
+    
+    // NEW: We need to iterate over all days in the month to show statuses even if no logs exist? 
+    // For now, let's keep showing only days with logs + days with status if we want. 
+    // But the current logic iterates `groupedLogs`.
+    // Let's stick to showing days with logs for now, OR if we want to show "Folga" on a day without logs, we'd need to change how `dailyData` is constructed.
+    // However, the user usually views "history". 
+    // Let's merge logs keys with status keys.
+    
+    const allDates = new Set([...Object.keys(groupedLogs), ...dailyStatuses.map(s => s.date)]);
+    
+    const dailyData = Array.from(allDates).sort().reverse().map(dateKey => {
+        const dayLogs = groupedLogs[dateKey] || [];
+        const dayStatus = dailyStatuses.find(s => s.date === dateKey);
+
+        // Calculate daily total ONLY if filtered by employee
         const duration = selectedEmployeeId !== 'ALL' ? calculateHours(dayLogs) : { hours: 0, minutes: 0, totalMinutes: 0 };
         monthlyMinutes += duration.totalMinutes;
 
         return {
-            date: new Date(dateKey + 'T00:00:00'), // Ensure local date interpretation
+            date: new Date(dateKey + 'T00:00:00'),
             logs: dayLogs,
-            duration
+            duration,
+            status: dayStatus // Pass status
         };
     });
 
@@ -88,8 +101,9 @@ export default function TimeSheet() {
         }
         text += '\n';
 
-        dailyData.forEach(({ date, logs, duration }) => {
+        dailyData.forEach(({ date, logs, duration, status }) => {
             text += `🔹 *${format(date, 'dd/MM/yyyy')}*`;
+            if (status) text += ` [${status.status}]`;
             if (selectedEmployeeId !== 'ALL') text += ` (${formatDuration(duration)})`;
             text += '\n';
 
@@ -126,7 +140,10 @@ export default function TimeSheet() {
         setShowAddModal(true);
     };
 
-    // ... (handleDelete unchanged) ...
+    const handleStatusChange = async (dateStr, newStatus) => {
+        if (selectedEmployeeId === 'ALL') return alert('Selecione um funcionário para alterar o status.');
+        await updateDailyStatus(selectedEmployeeId, dateStr, newStatus);
+    };
 
     return (
         <div className="animate-in fade-in duration-500 pb-20">
@@ -213,31 +230,55 @@ export default function TimeSheet() {
                     <div className="p-12 flex justify-center">
                         <Loader2 className="animate-spin text-primary" size={32} />
                     </div>
-                ) : logs.length === 0 ? (
+                ) : dailyData.length === 0 ? (
                     <div className="p-12 text-center text-zinc-500 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/20">
                         <Clock size={48} className="mx-auto mb-4 opacity-20" />
                         <p>Nenhum registro encontrado neste período.</p>
                     </div>
                 ) : (
-                    dailyData.map(({ date, logs: dayLogs, duration }) => (
-                        <div key={date.toISOString()} className="card p-0 overflow-hidden border border-white/5">
+                    dailyData.map(({ date, logs: dayLogs, duration, status }) => (
+                        <div key={date.toISOString()} className={`card p-0 overflow-hidden border border-white/5 ${status?.status === 'FALTA' ? 'border-red-500/30' : ''}`}>
                             {/* Day Header */}
                             <div className="bg-white/5 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                                 <div className="flex items-center gap-3">
-                                    <div className="font-bold text-lg capitalize">
+                                    <div className="font-bold text-lg capitalize flex items-center gap-2">
                                         {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                                        {status && (
+                                            <span className={`text-xs px-2 py-0.5 rounded font-bold uppercase 
+                                                ${status.status === 'FOLGA' ? 'bg-blue-500/20 text-blue-500' : ''}
+                                                ${status.status === 'ATESTADO' ? 'bg-purple-500/20 text-purple-500' : ''}
+                                                ${status.status === 'FALTA' ? 'bg-red-500/20 text-red-500' : ''}
+                                            `}>
+                                                {status.status}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                                {selectedEmployeeId !== 'ALL' && (
-                                    <div className="flex items-center gap-2 text-sm font-medium bg-zinc-950 px-3 py-1 rounded-full border border-white/10">
-                                        <span className="text-zinc-500">Total:</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className={duration.totalMinutes > 0 ? "text-white" : "text-zinc-500"}>
-                                                {formatDuration(duration)}
-                                            </span>
+                                <div className="flex items-center gap-4">
+                                    {selectedEmployeeId !== 'ALL' && (
+                                        <select 
+                                            className="bg-black/20 text-xs text-zinc-400 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30"
+                                            value={status?.status || ''}
+                                            onChange={(e) => handleStatusChange(format(date, 'yyyy-MM-dd'), e.target.value || 'REMOVE')}
+                                        >
+                                            <option value="">Normal</option>
+                                            <option value="FOLGA">Folga</option>
+                                            <option value="ATESTADO">Atestado</option>
+                                            <option value="FALTA">Falta</option>
+                                        </select>
+                                    )}
+
+                                    {selectedEmployeeId !== 'ALL' && (
+                                        <div className="flex items-center gap-2 text-sm font-medium bg-zinc-950 px-3 py-1 rounded-full border border-white/10">
+                                            <span className="text-zinc-500">Total:</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={duration.totalMinutes > 0 ? "text-white" : "text-zinc-500"}>
+                                                    {formatDuration(duration)}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
                             {/* Logs List */}

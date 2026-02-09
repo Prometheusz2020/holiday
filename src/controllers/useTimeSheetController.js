@@ -5,13 +5,7 @@ import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 export function useTimeSheetController() {
     const { session } = useAuth();
-    const [logs, setLogs] = useState([]);
-    const [employees, setEmployees] = useState([]);
-    const [loading, setLoading] = useState(false);
-
-    // Filters
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [selectedEmployeeId, setSelectedEmployeeId] = useState('ALL');
+    const [dailyStatuses, setDailyStatuses] = useState([]);
 
     useEffect(() => {
         if (session?.establishment?.id) {
@@ -62,6 +56,22 @@ export function useTimeSheetController() {
 
             if (error) throw error;
             setLogs(data || []);
+
+            // Fetch Daily Statuses
+            let statusQuery = supabase
+                .from('daily_statuses')
+                .select('*')
+                .eq('establishment_id', session.establishment.id)
+                .gte('date', start) // Assuming date is stored as YYYY-MM-DD, string comparison works for ISO, but better be careful
+                .lte('date', end);
+
+            if (selectedEmployeeId !== 'ALL') {
+                statusQuery = statusQuery.eq('employee_id', selectedEmployeeId);
+            }
+
+            const { data: statusData, error: statusError } = await statusQuery;
+            if (statusError) throw statusError;
+            setDailyStatuses(statusData || []);
 
         } catch (err) {
             console.error("Error fetching timesheet:", err);
@@ -133,8 +143,60 @@ export function useTimeSheetController() {
         return true;
     };
 
+    const updateDailyStatus = async (employeeId, date, status, description = '') => {
+        if (!session?.establishment?.id) return false;
+
+        // Check if exists
+        const { data: existing } = await supabase
+            .from('daily_statuses')
+            .select('id')
+            .eq('employee_id', employeeId)
+            .eq('date', date)
+            .single();
+
+        let error;
+
+        if (status === 'REMOVE') {
+            if (existing) {
+                const { error: delError } = await supabase
+                    .from('daily_statuses')
+                    .delete()
+                    .eq('id', existing.id);
+                error = delError;
+            }
+        } else {
+            if (existing) {
+                const { error: upError } = await supabase
+                    .from('daily_statuses')
+                    .update({ status, description })
+                    .eq('id', existing.id);
+                error = upError;
+            } else {
+                const { error: insError } = await supabase
+                    .from('daily_statuses')
+                    .insert([{
+                        employee_id: employeeId,
+                        date,
+                        status,
+                        description,
+                        establishment_id: session.establishment.id
+                    }]);
+                error = insError;
+            }
+        }
+
+        if (error) {
+            console.error("Error updating daily status:", error);
+            return false;
+        }
+        
+        fetchLogs();
+        return true;
+    };
+
     return {
         logs,
+        dailyStatuses,
         employees,
         loading,
         selectedDate,
@@ -144,6 +206,7 @@ export function useTimeSheetController() {
         refreshLogs: fetchLogs,
         addTimeLog,
         updateTimeLog,
-        deleteTimeLog
+        deleteTimeLog,
+        updateDailyStatus
     };
 }
