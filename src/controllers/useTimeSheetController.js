@@ -5,6 +5,11 @@ import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 export function useTimeSheetController() {
     const { session } = useAuth();
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState('ALL');
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [employees, setEmployees] = useState([]);
     const [dailyStatuses, setDailyStatuses] = useState([]);
 
     useEffect(() => {
