@@ -1,10 +1,11 @@
 import { ChevronLeft, ChevronRight, FileBarChart, Filter, Loader2, Share2, Clock, CalendarDays, Plus, Trash2, Pencil, Printer } from 'lucide-react';
-import { format, subMonths, addMonths, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, subMonths, addMonths, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTimeSheetController } from '../controllers/useTimeSheetController';
 import { openWhatsApp } from '../utils/whatsapp';
 import ReportModal from '../components/ReportModal';
 import TimeLogModal from '../components/TimeLogModal';
+import StatusModal from '../components/StatusModal';
 import { useState } from 'react';
 
 export default function TimeSheet() {
@@ -27,7 +28,9 @@ export default function TimeSheet() {
     const [editingLog, setEditingLog] = useState(null);
     const [selectedDayForAdd, setSelectedDayForAdd] = useState(null);
 
-    // ... (helper functions calculateHours, formatDuration, groupedLogs, monthlyMinutes, dailyData, monthlyTotal, handleShare) ...
+    // Status Modal State
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [selectedStatusDate, setSelectedStatusDate] = useState(null);
 
     const calculateHours = (dayLogs) => {
         let sorted = [...dayLogs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -71,25 +74,25 @@ export default function TimeSheet() {
     
     // Sort reverse to show latest first and FILTER future dates
     const dailyData = daysInMonth
-        .filter(date => date <= today) // Hide future dates
+        .filter(date => isBefore(date, today) || isSameDay(date, today)) // Strict date filtering
         .sort((a, b) => b - a)
         .map(date => {
-        const dateKey = format(date, 'yyyy-MM-dd');
-        const dayLogs = groupedLogs[dateKey] || [];
-        const dayStatus = dailyStatuses.find(s => s.date === dateKey);
+            const dateKey = format(date, 'yyyy-MM-dd');
+            const dayLogs = groupedLogs[dateKey] || [];
+            const dayStatus = dailyStatuses.find(s => s.date === dateKey);
 
-        // Calculate daily total ONLY if filtered by employee
-        const duration = selectedEmployeeId !== 'ALL' ? calculateHours(dayLogs) : { hours: 0, minutes: 0, totalMinutes: 0 };
-        monthlyMinutes += duration.totalMinutes;
+            // Calculate daily total ONLY if filtered by employee
+            const duration = selectedEmployeeId !== 'ALL' ? calculateHours(dayLogs) : { hours: 0, minutes: 0, totalMinutes: 0 };
+            monthlyMinutes += duration.totalMinutes;
 
-        return {
-            date: date,
-            logs: dayLogs,
-            duration,
-            status: dayStatus,
-            hasActivity: dayLogs.length > 0 || !!dayStatus
-        };
-    });
+            return {
+                date: date,
+                logs: dayLogs,
+                duration,
+                status: dayStatus,
+                hasActivity: dayLogs.length > 0 || !!dayStatus
+            };
+        });
 
     const monthlyTotal = {
         hours: Math.floor(monthlyMinutes / 60),
@@ -157,31 +160,37 @@ export default function TimeSheet() {
         }
         setEditingLog(null);
         setSelectedDayForAdd(date); 
-        // We will need to pass this date to the modal or handle it in the modal open
         setShowAddModal(true);
     };
 
-    const handleStatusChange = async (dateStr, newStatus) => {
-        if (selectedEmployeeId === 'ALL') return alert('Selecione um funcionário para alterar o status.');
-        
-        const actionName = newStatus === 'REMOVE' ? 'remover o status' : `definir como ${newStatus}`;
-        if (!confirm(`Tem certeza que deseja ${actionName} para o dia ${format(parseISO(dateStr), 'dd/MM')}?`)) {
-            return; // Cancelled
-        }
+    const handleOpenStatusModal = (dateStr) => {
+        if (selectedEmployeeId === 'ALL') return alert('Selecione um funcionário primeiro.');
+        setSelectedStatusDate(dateStr);
+        setShowStatusModal(true);
+    };
 
-        const success = await updateDailyStatus(selectedEmployeeId, dateStr, newStatus);
-        if (success) {
-            // Optional: Success feedback could go here
-        } else {
+    const handleStatusUpdate = async (date, status, description) => {
+        const success = await updateDailyStatus(selectedEmployeeId, date, status, description);
+        if (!success) {
             alert('Erro ao atualizar status. Tente novamente.');
+            return false;
         }
+        return true;
+    };
+
+    const handleStatusDelete = async (date) => {
+        const success = await updateDailyStatus(selectedEmployeeId, date, 'REMOVE');
+         if (!success) {
+            alert('Erro ao remover status.');
+            return false;
+        }
+        return true;
     };
 
     return (
         <div className="animate-in fade-in duration-500 pb-20">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                {/* ... (Header content unchanged) ... */}
                 <div>
                     <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
                         Frequência
@@ -203,7 +212,6 @@ export default function TimeSheet() {
                             <span className="hidden md:inline">Imprimir Espelho</span>
                         </button>
                     )}
-                    {/* ... (Share button unchanged) ... */}
                     <button onClick={handleShare} className="btn-secondary flex items-center gap-2">
                         <Share2 size={20} />
                          <span className="hidden md:inline">Compartilhar</span>
@@ -274,15 +282,6 @@ export default function TimeSheet() {
                                 <div className="flex items-center gap-3">
                                     <div className="font-bold text-lg capitalize flex items-center gap-2">
                                         {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                                        {status && (
-                                            <span className={`text-xs px-2 py-0.5 rounded font-bold uppercase 
-                                                ${status.status === 'FOLGA' ? 'bg-blue-500/20 text-blue-500' : ''}
-                                                ${status.status === 'ATESTADO' ? 'bg-purple-500/20 text-purple-500' : ''}
-                                                ${status.status === 'FALTA' ? 'bg-red-500/20 text-red-500' : ''}
-                                            `}>
-                                                {status.status}
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -296,16 +295,29 @@ export default function TimeSheet() {
                                                 <Plus size={16} />
                                             </button>
                                             
-                                            <select 
-                                                className="bg-black/20 text-xs text-zinc-400 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30"
-                                                value={status?.status || ''}
-                                                onChange={(e) => handleStatusChange(format(date, 'yyyy-MM-dd'), e.target.value || 'REMOVE')}
+                                            <button 
+                                                onClick={() => handleOpenStatusModal(format(date, 'yyyy-MM-dd'))}
+                                                className={`text-xs px-3 py-1.5 rounded border transition-colors flex items-center gap-2
+                                                    ${status 
+                                                        ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' 
+                                                        : 'border-white/10 text-zinc-500 hover:border-white/30 hover:text-zinc-300'
+                                                    }`}
                                             >
-                                                <option value="">Normal</option>
-                                                <option value="FOLGA">Folga</option>
-                                                <option value="ATESTADO">Atestado</option>
-                                                <option value="FALTA">Falta</option>
-                                            </select>
+                                                {status ? (
+                                                    <>
+                                                        <span className={`w-2 h-2 rounded-full 
+                                                            ${status.status === 'FOLGA' ? 'bg-blue-500' : ''}
+                                                            ${status.status === 'ATESTADO' ? 'bg-purple-500' : ''}
+                                                            ${status.status === 'FALTA' ? 'bg-red-500' : ''}
+                                                        `} />
+                                                        {status.status}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span>Definir Status</span>
+                                                    </>
+                                                )}
+                                            </button>
                                         </>
                                     )}
 
@@ -371,7 +383,7 @@ export default function TimeSheet() {
                 )}
             </div>
 
-            {/* Modal */}
+            {/* Modals */}
             <TimeLogModal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
@@ -380,7 +392,16 @@ export default function TimeSheet() {
                 onUpdate={updateTimeLog}
                 initialEmployeeId={selectedEmployeeId}
                 editingLog={editingLog}
-                initialDate={selectedDayForAdd} // Added prop
+                initialDate={selectedDayForAdd}
+            />
+
+            <StatusModal
+                isOpen={showStatusModal}
+                onClose={() => setShowStatusModal(false)}
+                date={selectedStatusDate}
+                currentStatus={dailyStatuses.find(s => s.date === selectedStatusDate)}
+                onSave={handleStatusUpdate}
+                onDelete={handleStatusDelete}
             />
         </div>
     );
