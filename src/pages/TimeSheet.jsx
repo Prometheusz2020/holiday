@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, FileBarChart, Filter, Loader2, Share2, Clock, CalendarDays, Plus, Trash2, Pencil, Printer } from 'lucide-react';
-import { format, subMonths, addMonths, parseISO } from 'date-fns';
+import { format, subMonths, addMonths, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTimeSheetController } from '../controllers/useTimeSheetController';
 import { openWhatsApp } from '../utils/whatsapp';
@@ -19,12 +19,13 @@ export default function TimeSheet() {
         addTimeLog,
         updateTimeLog,
         deleteTimeLog,
-        dailyStatuses, // Added
-        updateDailyStatus // Added
+        dailyStatuses,
+        updateDailyStatus
     } = useTimeSheetController();
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingLog, setEditingLog] = useState(null);
+    const [selectedDayForAdd, setSelectedDayForAdd] = useState(null);
 
     // ... (helper functions calculateHours, formatDuration, groupedLogs, monthlyMinutes, dailyData, monthlyTotal, handleShare) ...
 
@@ -57,19 +58,18 @@ export default function TimeSheet() {
         groupedLogs[dateKey].push(log);
     });
 
+    // Generate Calendar Days for the selected month
+    const daysInMonth = eachDayOfInterval({
+        start: startOfMonth(selectedDate),
+        end: endOfMonth(selectedDate)
+    });
+
     // Calculate Totals
     let monthlyMinutes = 0;
     
-    // NEW: We need to iterate over all days in the month to show statuses even if no logs exist? 
-    // For now, let's keep showing only days with logs + days with status if we want. 
-    // But the current logic iterates `groupedLogs`.
-    // Let's stick to showing days with logs for now, OR if we want to show "Folga" on a day without logs, we'd need to change how `dailyData` is constructed.
-    // However, the user usually views "history". 
-    // Let's merge logs keys with status keys.
-    
-    const allDates = new Set([...Object.keys(groupedLogs), ...dailyStatuses.map(s => s.date)]);
-    
-    const dailyData = Array.from(allDates).sort().reverse().map(dateKey => {
+    // Sort reverse to show latest first
+    const dailyData = daysInMonth.sort((a, b) => b - a).map(date => {
+        const dateKey = format(date, 'yyyy-MM-dd');
         const dayLogs = groupedLogs[dateKey] || [];
         const dayStatus = dailyStatuses.find(s => s.date === dateKey);
 
@@ -78,10 +78,11 @@ export default function TimeSheet() {
         monthlyMinutes += duration.totalMinutes;
 
         return {
-            date: new Date(dateKey + 'T00:00:00'),
+            date: date,
             logs: dayLogs,
             duration,
-            status: dayStatus // Pass status
+            status: dayStatus,
+            hasActivity: dayLogs.length > 0 || !!dayStatus
         };
     });
 
@@ -101,7 +102,9 @@ export default function TimeSheet() {
         }
         text += '\n';
 
-        dailyData.forEach(({ date, logs, duration, status }) => {
+        dailyData
+            .filter(d => d.hasActivity) // Only share days with activity
+            .forEach(({ date, logs, duration, status }) => {
             text += `🔹 *${format(date, 'dd/MM/yyyy')}*`;
             if (status) text += ` [${status.status}]`;
             if (selectedEmployeeId !== 'ALL') text += ` (${formatDuration(duration)})`;
@@ -132,11 +135,24 @@ export default function TimeSheet() {
 
     const handleEdit = (log) => {
         setEditingLog(log);
+        setSelectedDayForAdd(null);
         setShowAddModal(true);
     };
 
     const handleAddNew = () => {
         setEditingLog(null);
+        setSelectedDayForAdd(null);
+        setShowAddModal(true);
+    };
+
+    const handleAddForDay = (date) => {
+        if (selectedEmployeeId === 'ALL') {
+             alert("Selecione um funcionário primeiro.");
+             return;
+        }
+        setEditingLog(null);
+        setSelectedDayForAdd(date); 
+        // We will need to pass this date to the modal or handle it in the modal open
         setShowAddModal(true);
     };
 
@@ -172,6 +188,10 @@ export default function TimeSheet() {
                         </button>
                     )}
                     {/* ... (Share button unchanged) ... */}
+                    <button onClick={handleShare} className="btn-secondary flex items-center gap-2">
+                        <Share2 size={20} />
+                         <span className="hidden md:inline">Compartilhar</span>
+                    </button>
                 </div>
             </div>
 
@@ -210,7 +230,7 @@ export default function TimeSheet() {
             </div>
 
             {/* Monthly Summary (Contextual) */}
-            {selectedEmployeeId !== 'ALL' && !loading && logs.length > 0 && (
+            {selectedEmployeeId !== 'ALL' && !loading && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-in slide-in-from-top duration-500">
                     <div className="card bg-zinc-900/50 border-zinc-800 flex items-center justify-between">
                         <div>
@@ -230,14 +250,9 @@ export default function TimeSheet() {
                     <div className="p-12 flex justify-center">
                         <Loader2 className="animate-spin text-primary" size={32} />
                     </div>
-                ) : dailyData.length === 0 ? (
-                    <div className="p-12 text-center text-zinc-500 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/20">
-                        <Clock size={48} className="mx-auto mb-4 opacity-20" />
-                        <p>Nenhum registro encontrado neste período.</p>
-                    </div>
                 ) : (
                     dailyData.map(({ date, logs: dayLogs, duration, status }) => (
-                        <div key={date.toISOString()} className={`card p-0 overflow-hidden border border-white/5 ${status?.status === 'FALTA' ? 'border-red-500/30' : ''}`}>
+                        <div key={date.toISOString()} className={`card p-0 overflow-hidden border border-white/5 ${status?.status === 'FALTA' ? 'border-red-500/30' : ''} ${dayLogs.length === 0 && !status ? 'opacity-60 hover:opacity-100 transition-opacity' : ''}`}>
                             {/* Day Header */}
                             <div className="bg-white/5 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                                 <div className="flex items-center gap-3">
@@ -256,16 +271,26 @@ export default function TimeSheet() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     {selectedEmployeeId !== 'ALL' && (
-                                        <select 
-                                            className="bg-black/20 text-xs text-zinc-400 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30"
-                                            value={status?.status || ''}
-                                            onChange={(e) => handleStatusChange(format(date, 'yyyy-MM-dd'), e.target.value || 'REMOVE')}
-                                        >
-                                            <option value="">Normal</option>
-                                            <option value="FOLGA">Folga</option>
-                                            <option value="ATESTADO">Atestado</option>
-                                            <option value="FALTA">Falta</option>
-                                        </select>
+                                        <>
+                                            <button 
+                                                onClick={() => handleAddForDay(date)}
+                                                className="p-1.5 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                                                title="Adicionar Registro neste dia"
+                                            >
+                                                <Plus size={16} />
+                                            </button>
+                                            
+                                            <select 
+                                                className="bg-black/20 text-xs text-zinc-400 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30"
+                                                value={status?.status || ''}
+                                                onChange={(e) => handleStatusChange(format(date, 'yyyy-MM-dd'), e.target.value || 'REMOVE')}
+                                            >
+                                                <option value="">Normal</option>
+                                                <option value="FOLGA">Folga</option>
+                                                <option value="ATESTADO">Atestado</option>
+                                                <option value="FALTA">Falta</option>
+                                            </select>
+                                        </>
                                     )}
 
                                     {selectedEmployeeId !== 'ALL' && (
@@ -339,6 +364,7 @@ export default function TimeSheet() {
                 onUpdate={updateTimeLog}
                 initialEmployeeId={selectedEmployeeId}
                 editingLog={editingLog}
+                initialDate={selectedDayForAdd} // Added prop
             />
         </div>
     );

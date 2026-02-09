@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Clock, Calendar as CalendarIcon, User } from 'lucide-react';
 
-export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpdate, initialEmployeeId, editingLog }) {
+export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpdate, initialEmployeeId, editingLog, initialDate }) {
     const [formData, setFormData] = useState({
         employeeId: '',
         date: '',
@@ -23,22 +23,36 @@ export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpd
                 });
             } else {
                 // Default for new
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const hour = String(now.getHours()).padStart(2, '0');
-                const minute = String(now.getMinutes()).padStart(2, '0');
+                let dateStr;
+                let timeStr;
+                
+                if (initialDate) {
+                    const d = new Date(initialDate);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    dateStr = `${year}-${month}-${day}`;
+                    timeStr = '08:00'; // Default start time for specific day add
+                } else {
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+                    const hour = String(now.getHours()).padStart(2, '0');
+                    const minute = String(now.getMinutes()).padStart(2, '0');
+                    dateStr = `${year}-${month}-${day}`;
+                    timeStr = `${hour}:${minute}`;
+                }
 
                 setFormData({
                     employeeId: initialEmployeeId !== 'ALL' ? initialEmployeeId : '',
-                    date: `${year}-${month}-${day}`,
-                    time: `${hour}:${minute}`,
+                    date: dateStr,
+                    time: timeStr,
                     type: 'IN'
                 });
             }
         }
-    }, [isOpen, initialEmployeeId, editingLog]);
+    }, [isOpen, initialEmployeeId, editingLog, initialDate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
