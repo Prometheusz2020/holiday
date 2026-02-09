@@ -47,13 +47,18 @@ export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpd
         setLoading(true);
         let success;
 
-        if (editingLog) {
-            success = await onUpdate(editingLog.id, formData);
-        } else {
-            success = await onSave(formData);
+        try {
+            if (editingLog) {
+                success = await onUpdate(editingLog.id, formData);
+            } else {
+                success = await onSave(formData);
+            }
+        } catch (error) {
+            console.error("Error saving log:", error);
+            success = false;
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
 
         if (success) onClose();
     };

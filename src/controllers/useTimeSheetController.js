@@ -71,8 +71,10 @@ export function useTimeSheetController() {
     };
 
     // Add logic for Manual Adjustments (addTimeLog, deleteTimeLog)
-    const addTimeLog = async (employeeId, type, date, time) => {
+    const addTimeLog = async (formData) => {
         if (!session?.establishment?.id) return false;
+
+        const { employeeId, type, date, time } = formData;
 
         // Combine date and time
         const timestamp = new Date(`${date}T${time}`).toISOString();

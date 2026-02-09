@@ -109,7 +109,10 @@ export default function TimeSheet() {
 
     const handleDelete = async (id) => {
         if (confirm('Tem certeza que deseja excluir este registro?')) {
-            await deleteTimeLog(id);
+            const success = await deleteTimeLog(id);
+            if (!success) {
+                alert('Erro ao excluir registro due to a server error.');
+            }
         }
     };
 
