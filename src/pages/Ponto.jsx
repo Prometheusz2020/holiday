@@ -63,7 +63,7 @@ export default function Ponto() {
     // 1. Home Screen (Select Action)
     if (!actionType) {
         return (
-            <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col items-center justify-start pt-16 p-6 relative overflow-hidden">
                 {/* Admin Button */}
                 <button
                     onClick={() => setActionType('ADMIN')}
@@ -134,7 +134,7 @@ export default function Ponto() {
     };
 
     return (
-        <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col items-center justify-center p-4">
+        <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col items-center justify-start pt-12 p-4">
 
             <button
                 onClick={() => { setActionType(null); setPin(''); setSelectedEmployee(''); setMessage(null); }}
@@ -144,8 +144,8 @@ export default function Ponto() {
             </button>
 
             <div className="w-full max-w-sm animate-in zoom-in-95 duration-300">
-                <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold mb-2">
+                <div className="text-center mb-6">
+                    <h2 className="text-3xl font-bold mb-1">
                         {getScreenTitle()}
                     </h2>
                     <p className="text-zinc-500">
@@ -171,7 +171,7 @@ export default function Ponto() {
                 )}
 
                 {/* PIN Display */}
-                <div className="flex justify-center gap-4 mb-8 h-12">
+                <div className="flex justify-center gap-4 mb-6 h-12">
                     {[0, 1, 2, 3].map(i => {
                         let activeColor = 'bg-zinc-500';
                         if (actionType === 'IN') activeColor = 'bg-green-500';
@@ -186,7 +186,7 @@ export default function Ponto() {
                 </div>
 
                 {/* Numpad */}
-                <div className="grid grid-cols-3 gap-3 mb-8">
+                <div className="grid grid-cols-3 gap-2 mb-6">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                         <button
                             key={num}
