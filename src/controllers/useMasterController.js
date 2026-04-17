@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export function useMasterController() {
@@ -12,13 +12,7 @@ export function useMasterController() {
 
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('administrators')
-                .select('*')
-                .eq('establishment_id', session.establishment.id)
-                .order('name');
-
-            if (error) throw error;
+            const data = await api.get(`/administrators/${session.establishment.id}`);
             setMasters(data || []);
         } catch (error) {
             console.error('Error fetching masters:', error);
@@ -29,15 +23,12 @@ export function useMasterController() {
 
     const addMaster = async (masterData) => {
         if (!session?.establishment?.id) return false;
-
         try {
-            const { data, error } = await supabase
-                .from('administrators')
-                .insert([{ ...masterData, establishment_id: session.establishment.id }])
-                .select();
-
-            if (error) throw error;
-            setMasters([...masters, data[0]]);
+            const data = await api.post('/administrators', {
+                ...masterData,
+                establishment_id: session.establishment.id
+            });
+            setMasters([...masters, data]);
             return true;
         } catch (error) {
             console.error('Error adding master:', error);
@@ -48,14 +39,8 @@ export function useMasterController() {
 
     const updateMaster = async (id, masterData) => {
         try {
-            const { error } = await supabase
-                .from('administrators')
-                .update(masterData)
-                .eq('id', id);
-
-            if (error) throw error;
-
-            setMasters(masters.map(m => m.id === id ? { ...m, ...masterData } : m));
+            const data = await api.put(`/administrators/${id}`, masterData);
+            setMasters(masters.map(m => m.id === id ? data : m));
             return true;
         } catch (error) {
             console.error('Error updating master:', error);
@@ -66,8 +51,7 @@ export function useMasterController() {
 
     const deleteMaster = async (id) => {
         try {
-            const { error } = await supabase.from('administrators').delete().eq('id', id);
-            if (error) throw error;
+            await api.delete(`/administrators/${id}`);
             setMasters(masters.filter(m => m.id !== id));
             return true;
         } catch (error) {

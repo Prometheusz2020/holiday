@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, Printer } from 'lucide-react';
 
@@ -11,7 +11,7 @@ export default function TimeSheetPrint() {
     const { session } = useAuth();
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState([]);
-    const [dailyStatuses, setDailyStatuses] = useState([]); // Added
+    const [dailyStatuses, setDailyStatuses] = useState([]);
     const [employee, setEmployee] = useState(null);
 
     const employeeId = searchParams.get('employeeId');
@@ -28,37 +28,20 @@ export default function TimeSheetPrint() {
         setLoading(true);
         try {
             // 1. Fetch Employee
-            const { data: empData } = await supabase
-                .from('employees')
-                .select('*')
-                .eq('id', employeeId)
-                .single();
+            const employeesRaw = await api.get(`/employees/${session.establishment.id}`);
+            const empData = employeesRaw.find(e => e.id === employeeId);
             setEmployee(empData);
 
             // 2. Fetch Logs
             const start = startOfMonth(referenceDate).toISOString();
             const end = endOfMonth(referenceDate).toISOString();
 
-            const { data: logData } = await supabase
-                .from('time_logs')
-                .select('*')
-                .eq('establishment_id', session.establishment.id)
-                .eq('employee_id', employeeId)
-                .gte('timestamp', start)
-                .lte('timestamp', end)
-                .order('timestamp', { ascending: true });
-
+            const query = `?start=${start}&end=${end}&employeeId=${employeeId}`;
+            const logData = await api.get(`/time-logs/${session.establishment.id}${query}`);
             setLogs(logData || []);
 
             // 3. Fetch Daily Statuses
-            const { data: statusData } = await supabase
-                .from('daily_statuses')
-                .select('*')
-                .eq('establishment_id', session.establishment.id)
-                .eq('employee_id', employeeId)
-                .gte('date', start)
-                .lte('date', end);
-            
+            const statusData = await api.get(`/daily-statuses/${session.establishment.id}${query}`);
             setDailyStatuses(statusData || []);
 
         } catch (error) {
@@ -102,7 +85,6 @@ export default function TimeSheetPrint() {
         return <div className="p-8 text-center">Funcionário não encontrado.</div>;
     }
 
-    // Generate Calendar Days
     const daysInMonth = eachDayOfInterval({
         start: startOfMonth(referenceDate),
         end: endOfMonth(referenceDate)
@@ -111,8 +93,7 @@ export default function TimeSheetPrint() {
     let monthlyMinutes = 0;
 
     return (
-        <div className="bg-white text-black min-h-screen p-8 print:p-0 font-sans max-w-[210mm] mx-auto">
-            {/* Action Bar (Hidden in Print) */}
+        <div className="bg-white text-black min-h-screen p-8 print:p-0 font-sans max-w-[210mm] mx-auto text-[12px]">
             <div className="print:hidden flex justify-end mb-8 sticky top-0 bg-white p-4 border-b shadow-sm">
                 <button
                     onClick={() => window.print()}
@@ -123,7 +104,6 @@ export default function TimeSheetPrint() {
                 </button>
             </div>
 
-            {/* Header */}
             <div className="border-b-2 border-black pb-4 mb-6">
                 <div className="flex justify-between items-start">
                     <div>
@@ -137,26 +117,23 @@ export default function TimeSheetPrint() {
                 </div>
             </div>
 
-            {/* Employee Info */}
             <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between gap-4">
                 <div>
                     <span className="text-xs uppercase text-gray-500 font-bold block">Funcionário</span>
                     <span className="text-xl font-medium">{employee.name}</span>
                 </div>
                 <div>
-                    <span className="text-xs uppercase text-gray-500 font-bold block">CPF/ID</span>
-                    <span className="text-lg font-mono">{employee.cpf || '---'} / {employee.pin || '---'}</span>
+                    <span className="text-xs uppercase text-gray-500 font-bold block">Função</span>
+                    <span className="text-lg">{employee.role || '---'}</span>
                 </div>
             </div>
 
-            {/* Table */}
             <div className="mb-8">
                 <table className="w-full text-left text-sm border-collapse border border-gray-300">
                     <thead>
-                        <tr className="bg-gray-100">
-                            <th className="border border-gray-300 p-2 w-32">Data</th>
-                            <th className="border border-gray-300 p-2">Entradas</th>
-                            <th className="border border-gray-300 p-2">Saídas</th>
+                        <tr className="bg-gray-100 uppercase">
+                            <th className="border border-gray-300 p-2 w-28">Data</th>
+                            <th className="border border-gray-300 p-2">Marcações de Ponto</th>
                             <th className="border border-gray-300 p-2 w-24 text-right">Total</th>
                         </tr>
                     </thead>
@@ -164,31 +141,30 @@ export default function TimeSheetPrint() {
                         {daysInMonth.map(date => {
                             const dateKey = format(date, 'yyyy-MM-dd');
                             const dayLogs = logs.filter(l => format(new Date(l.timestamp), 'yyyy-MM-dd') === dateKey);
-                            const dayStatus = dailyStatuses.find(s => s.date === dateKey); // Status
+                            const dayStatus = dailyStatuses.find(s => format(new Date(s.date), 'yyyy-MM-dd') === dateKey);
                             
                             const duration = calculateDailyTotal(dayLogs);
-
                             monthlyMinutes += duration.totalMinutes;
 
-                            const ins = dayLogs.filter(l => l.type === 'IN').map(l => format(new Date(l.timestamp), 'HH:mm')).join(' • ');
-                            const outs = dayLogs.filter(l => l.type === 'OUT').map(l => format(new Date(l.timestamp), 'HH:mm')).join(' • ');
+                            const markings = dayLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+                                .map(l => format(new Date(l.timestamp), 'HH:mm'))
+                                .join(' • ');
 
                             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
                             return (
-                                <tr key={dateKey} className={isWeekend ? "bg-gray-50" : ""}>
+                                <tr key={dateKey} className={isWeekend ? "bg-gray-50/50" : ""}>
                                     <td className="border border-gray-300 p-2 font-mono">
-                                        {format(date, 'dd/MM')} <span className="text-gray-400 text-xs ml-1">{format(date, 'EEE', { locale: ptBR })}</span>
+                                        {format(date, 'dd/MM')} <span className="text-gray-400 text-[10px] ml-1 uppercase">{format(date, 'EEE', { locale: ptBR })}</span>
                                     </td>
                                     {dayStatus ? (
-                                        <td colSpan={2} className="border border-gray-300 p-2 font-bold text-center bg-gray-50 text-gray-500 tracking-wider">
-                                            {dayStatus.status}
+                                        <td className="border border-gray-300 p-2 font-bold text-center bg-gray-50 text-gray-500 tracking-wider">
+                                            {dayStatus.status} {dayStatus.description && `(${dayStatus.description})`}
                                         </td>
                                     ) : (
-                                        <>
-                                            <td className="border border-gray-300 p-2 font-mono text-green-700">{ins}</td>
-                                            <td className="border border-gray-300 p-2 font-mono text-red-700">{outs}</td>
-                                        </>
+                                        <td className="border border-gray-300 p-2 font-mono">
+                                            {markings || "-"}
+                                        </td>
                                     )}
                                     <td className="border border-gray-300 p-2 text-right font-bold">
                                         {formatDuration(duration)}
@@ -199,8 +175,8 @@ export default function TimeSheetPrint() {
                     </tbody>
                     <tfoot>
                         <tr className="bg-gray-100 font-bold">
-                            <td colSpan={3} className="border border-gray-300 p-2 text-right uppercase">Total Mensal</td>
-                            <td className="border border-gray-300 p-2 text-right text-lg">
+                            <td colSpan={2} className="border border-gray-300 p-2 text-right uppercase">Carga Horária Total Efetuada</td>
+                            <td className="border border-gray-300 p-2 text-right text-base">
                                 {Math.floor(monthlyMinutes / 60)}h {(monthlyMinutes % 60).toString().padStart(2, '0')}m
                             </td>
                         </tr>
@@ -208,20 +184,19 @@ export default function TimeSheetPrint() {
                 </table>
             </div>
 
-            {/* Signatures */}
-            <div className="grid grid-cols-2 gap-12 mt-20 page-break-inside-avoid">
-                <div className="border-t border-black pt-2">
-                    <p className="font-bold">{session?.establishment?.name}</p>
-                    <p className="text-xs text-gray-500">Empregador</p>
+            <div className="grid grid-cols-2 gap-12 mt-20 page-break-inside-avoid px-8">
+                <div className="border-t-2 border-black pt-2 text-center">
+                    <p className="font-bold text-sm">{session?.establishment?.name}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Carimbo e Assinatura da Empresa</p>
                 </div>
-                <div className="border-t border-black pt-2">
-                    <p className="font-bold">{employee.name}</p>
-                    <p className="text-xs text-gray-500">Funcionário</p>
+                <div className="border-t-2 border-black pt-2 text-center">
+                    <p className="font-bold text-sm">{employee.name}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Assinatura do Funcionário</p>
                 </div>
             </div>
 
-            <div className="mt-8 text-[10px] text-gray-400 text-center print:fixed print:bottom-4 print:left-0 print:right-0">
-                Gerado electronicamente por Holiday Manager • {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
+            <div className="mt-12 text-[9px] text-gray-400 text-center uppercase tracking-tighter">
+                Espelho de Ponto • Holiday Manager Neon Server • Emitido via Cloud em {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
             </div>
         </div>
     );

@@ -1,15 +1,15 @@
 import { useApp } from '../context/AppContext';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { format, isWithinInterval, parseISO, isFuture, addDays, compareAsc, isValid } from 'date-fns';
+import { format, isWithinInterval, parseISO, isFuture, addDays, compareAsc } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Users, Palmtree, DollarSign, TrendingUp, Calendar, Loader2, Share2, Wallet, FileBarChart, Clock, LogOut } from 'lucide-react';
+import { Users, Palmtree, Loader2, Share2, Wallet, FileBarChart, Clock, LogOut, TrendingUp, Calendar } from 'lucide-react';
 import { formatCurrency, openWhatsApp } from '../utils/whatsapp';
 import { useState } from 'react';
 import ReportModal from '../components/ReportModal';
 
 export default function Dashboard() {
-    const { employees, vacations, loading, liveAttendants } = useApp();
+    const { employees, vacations, loading, liveAttendants, fetchData } = useApp();
     const { session } = useAuth();
     const [showReport, setShowReport] = useState(false);
     const [showLiveReport, setShowLiveReport] = useState(false);
@@ -22,11 +22,12 @@ export default function Dashboard() {
             </div>
         );
     }
+    
     const awayToday = vacations.filter(vac => {
-        if (!vac.start_date || !vac.end_date) return false;
+        if (!vac.startDate || !vac.endDate) return false;
         try {
-            const start = parseISO(vac.start_date);
-            const end = parseISO(vac.end_date);
+            const start = parseISO(vac.startDate);
+            const end = parseISO(vac.endDate);
             return isWithinInterval(today, { start, end });
         } catch (e) { return false; }
     });
@@ -34,18 +35,17 @@ export default function Dashboard() {
     const upcomingLimit = addDays(today, 60);
     const upcomingVacations = vacations
         .filter(vac => {
-            if (!vac.start_date) return false;
-            const start = parseISO(vac.start_date);
+            if (!vac.startDate) return false;
+            const start = parseISO(vac.startDate);
             return isFuture(start) && start <= upcomingLimit;
         })
-        .sort((a, b) => compareAsc(parseISO(a.start_date), parseISO(b.start_date)));
+        .sort((a, b) => compareAsc(parseISO(a.startDate), parseISO(b.startDate)));
 
     const reportData = [...awayToday, ...upcomingVacations].map(vac => {
-        const emp = employees.find(e => e.id === vac.employee_id);
-        const start = parseISO(vac.start_date);
-        const end = parseISO(vac.end_date);
+        const emp = employees.find(e => e.id === vac.employeeId);
+        const start = parseISO(vac.startDate);
+        const end = parseISO(vac.endDate);
         const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
-        // Calculation: Salary / 30 * Days * 1.3333 (1/3 vacation bonus)
         const cost = (emp?.salary / 30 * days) * 1.3333;
 
         return {
@@ -78,12 +78,12 @@ export default function Dashboard() {
     ];
 
     const liveData = liveAttendants.map(log => {
-        const emp = employees.find(e => e.id === log.employee_id);
+        const emp = employees.find(e => e.id === log.employeeId);
         return {
             name: emp?.name || 'Desconhecido',
             role: emp?.role || '-',
             entry: parseISO(log.timestamp),
-            employee_id: log.employee_id
+            employeeId: log.employeeId
         };
     });
 
@@ -101,17 +101,13 @@ export default function Dashboard() {
         if (!confirm('Deseja dar saída manual para este funcionário agora?')) return;
 
         try {
-            // We can register a manual OUT using the same RPC or direct insert
-            // Using direct insert is easier here since we don't have the PIN
-            const { error } = await supabase.from('time_logs').insert([{
+            await api.post('/time-logs', {
                 employee_id: employeeId,
                 type: 'OUT',
                 timestamp: new Date().toISOString(),
                 establishment_id: session.establishment.id
-            }]);
-
-            if (error) throw error;
-            // The subscription in AppContext will picking this up and refresh silently!
+            });
+            fetchData(true);
         } catch (err) {
             console.error("Error logging out:", err);
             alert('Erro ao dar saída.');
@@ -126,7 +122,7 @@ export default function Dashboard() {
             header: 'Ação',
             cell: (row) => (
                 <button
-                    onClick={() => handleForceLogout(row.employee_id)}
+                    onClick={() => handleForceLogout(row.employeeId)}
                     className="p-2 bg-red-500/10 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-colors"
                     title="Dar Saída Manual"
                 >
@@ -168,9 +164,6 @@ export default function Dashboard() {
                             <Palmtree size={24} />
                         </div>
                     </div>
-                    <div className="text-xs font-medium text-zinc-500 mt-2">
-                        {awayToday.length > 0 ? `${awayToday.length} ausentes hoje` : 'Equipe completa'}
-                    </div>
                 </div>
 
                 <div className="card border-l-4 border-l-emerald-500 hover:-translate-y-1 transition-transform cursor-default">
@@ -183,10 +176,9 @@ export default function Dashboard() {
                             <Calendar size={24} />
                         </div>
                     </div>
-                    <div className="text-xs font-medium text-zinc-500 mt-2">Próximos 60 dias</div>
                 </div>
 
-                <div className="card border-l-4 border-l-blue-500 hover:-translate-y-1 transition-transform cursor-default group relative cursor-pointer" onClick={() => setShowReport(true)}>
+                <div className="card border-l-4 border-l-blue-500 hover:-translate-y-1 transition-transform cursor-pointer group relative" onClick={() => setShowReport(true)}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className="text-zinc-400 text-sm font-bold uppercase tracking-wider">Custo Previsto</p>
@@ -195,13 +187,6 @@ export default function Dashboard() {
                         <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
                             <Wallet size={24} />
                         </div>
-                    </div>
-                    <div className="text-xs font-medium text-zinc-500 mt-2 flex items-center gap-1">
-                        Ver relatório financeiro
-                        <FileBarChart size={12} className="text-zinc-400" />
-                    </div>
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-white/10 p-1.5 rounded-full"><Share2 size={12} className="text-white" /></div>
                     </div>
                 </div>
 
@@ -215,24 +200,12 @@ export default function Dashboard() {
                             <Clock size={24} />
                         </div>
                     </div>
-                    <div className="text-xs font-medium text-zinc-500 mt-2 flex flex-wrap gap-1">
-                        {liveAttendants.length > 0 ? (
-                            employees.filter(e => liveAttendants.some(l => l.employee_id === e.id)).slice(0, 3).map(e => (
-                                <span key={e.id} className="bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded border border-green-500/20">{e.name.split(' ')[0]}</span>
-                            ))
-                        ) : 'Ninguém registrado'}
-                        {liveAttendants.length > 3 && <span className="text-zinc-500">+{liveAttendants.length - 3}</span>}
-                    </div>
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-white/10 p-1.5 rounded-full"><Share2 size={12} className="text-white" /></div>
-                    </div>
                 </div>
             </div>
 
             {/* Lists */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="card">
-                    {/* Same List Logic */}
                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <Palmtree size={20} className="text-orange-500" />
                         Quem está de férias?
@@ -244,7 +217,7 @@ export default function Dashboard() {
                     ) : (
                         <div className="space-y-4">
                             {awayToday.map(vac => {
-                                const emp = employees.find(e => e.id === vac.employee_id);
+                                const emp = employees.find(e => e.id === vac.employeeId);
                                 return (
                                     <div key={vac.id} className="flex items-center gap-4 p-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 transition-colors border border-white/5">
                                         <div className="w-12 h-12 rounded-full bg-surface border border-white/10 flex items-center justify-center font-bold text-xl text-primary">
@@ -252,7 +225,7 @@ export default function Dashboard() {
                                         </div>
                                         <div>
                                             <h4 className="font-bold text-lg">{emp?.name}</h4>
-                                            <p className="text-sm text-zinc-400">Volta em {format(parseISO(vac.end_date), 'd MMM', { locale: ptBR })}</p>
+                                            <p className="text-sm text-zinc-400">Volta em {format(parseISO(vac.endDate), 'd MMM', { locale: ptBR })}</p>
                                         </div>
                                     </div>
                                 );
@@ -262,7 +235,6 @@ export default function Dashboard() {
                 </div>
 
                 <div className="card">
-                    {/* Same List Logic */}
                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <TrendingUp size={20} className="text-emerald-500" />
                         Próximas Férias
@@ -274,15 +246,12 @@ export default function Dashboard() {
                     ) : (
                         <div className="space-y-4">
                             {upcomingVacations.slice(0, 5).map(vac => {
-                                const emp = employees.find(e => e.id === vac.employee_id);
+                                const emp = employees.find(e => e.id === vac.employeeId);
                                 return (
                                     <div key={vac.id} className="flex justify-between items-center p-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 transition-colors border-l-4 border-primary shadow-lg lg:hover:pl-6">
                                         <div>
                                             <h4 className="font-bold text-lg">{emp?.name}</h4>
-                                            <p className="text-sm text-zinc-400">{format(parseISO(vac.start_date), 'd MMM', { locale: ptBR })} - {format(parseISO(vac.end_date), 'd MMM', { locale: ptBR })}</p>
-                                        </div>
-                                        <div className="text-xs font-bold uppercase tracking-wider bg-surface px-2 py-1 rounded text-zinc-300 border border-white/5">
-                                            {emp?.role}
+                                            <p className="text-sm text-zinc-400">{format(parseISO(vac.startDate), 'd MMM', { locale: ptBR })} - {format(parseISO(vac.endDate), 'd MMM', { locale: ptBR })}</p>
                                         </div>
                                     </div>
                                 );

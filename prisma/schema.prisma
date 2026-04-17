@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Establishment {
+  id              String           @id @default(uuid()) @db.Uuid
+  name            String
+  businessType    String?          @map("business_type")
+  isBlocked       Boolean          @default(false) @map("is_blocked")
+  paymentWarning  Boolean          @default(false) @map("payment_warning")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  
+  profiles        Profile[]
+  employees       Employee[]
+  vacations       Vacation[]
+  timeLogs        TimeLog[]
+  administrators  Administrator[]
+  dailyStatuses   DailyStatus[]
+
+  @@map("establishments")
+}
+
+model Profile {
+  id              String        @id
+  establishmentId String        @db.Uuid @map("establishment_id")
+  role            String        @default("Funcionario")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Employee {
+  id              String        @id @default(uuid()) @db.Uuid
+  establishmentId String        @db.Uuid @map("establishment_id")
+  name            String
+  role            String?
+  pinCode         String        @map("pin_code")
+  salary          Decimal?      @db.Decimal
+  hireDate        DateTime?     @map("hire_date") @db.Date
+  createdAt       DateTime      @default(now()) @map("created_at")
+  
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  timeLogs        TimeLog[]
+  vacations       Vacation[]
+  dailyStatuses   DailyStatus[]
+
+  @@map("employees")
+}
+
+model Vacation {
+  id              String        @id @default(uuid()) @db.Uuid
+  employeeId      String        @db.Uuid @map("employee_id")
+  establishmentId String        @db.Uuid @map("establishment_id")
+  startDate       DateTime      @map("start_date") @db.Date
+  endDate         DateTime      @map("end_date") @db.Date
+  status          String        @default("Pending")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@map("vacations")
+}
+
+model TimeLog {
+  id              String        @id @default(uuid()) @db.Uuid
+  employeeId      String        @db.Uuid @map("employee_id")
+  establishmentId String        @db.Uuid @map("establishment_id")
+  type            String
+  timestamp       DateTime      @default(now())
+  method          String?       @default("PIN")
+  latitude        Float?
+  longitude       Float?
+  photoUrl        String?       @map("photo_url")
+  editedBy        String?       @db.Uuid @map("edited_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@map("time_logs")
+}
+
+model Administrator {
+  id              String        @id @default(uuid()) @db.Uuid
+  name            String?
+  email           String?       @unique
+  password        String?
+  establishmentId String        @db.Uuid @map("establishment_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@map("administrators")
+}
+
+model DailyStatus {
+  id              String   @id @default(uuid()) @db.Uuid
+  employeeId      String   @db.Uuid @map("employee_id")
+  establishmentId String   @db.Uuid @map("establishment_id")
+  date            DateTime @db.Date
+  status          String   @default("NORMAL")
+  description     String?  @default("")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@map("daily_statuses")
+}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 import { useAuth } from './AuthContext';
 
 const AppContext = createContext();
@@ -12,36 +12,13 @@ export function AppProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     const fetchData = async (silent = false) => {
-        if (!session?.establishment?.id) return; // Wait for session
+        if (!session?.establishment?.id) return;
 
         if (!silent) setLoading(true);
         try {
-            const { data: empData, error: empError } = await supabase
-                .from('employees')
-                .select('*')
-                .eq('establishment_id', session.establishment.id);
-
-            if (empError) throw empError;
-
-            const { data: vacData, error: vacError } = await supabase
-                .from('vacations')
-                .select('*')
-                .eq('establishment_id', session.establishment.id);
-
-            if (vacError) throw vacError;
-
-            // Fetch recent logs (last 24h)
-            const yesterday = new Date();
-            yesterday.setHours(yesterday.getHours() - 24);
-
-            const { data: logsData, error: logsError } = await supabase
-                .from('time_logs')
-                .select('*')
-                .eq('establishment_id', session.establishment.id)
-                .gte('timestamp', yesterday.toISOString())
-                .order('timestamp', { ascending: false });
-
-            if (logsError) console.error("Error fetching logs:", logsError);
+            const empData = await api.get(`/employees/${session.establishment.id}`);
+            const vacData = await api.get(`/vacations/${session.establishment.id}`);
+            const logsData = await api.get(`/time-logs/${session.establishment.id}`);
 
             setEmployees(empData || []);
             setVacations(vacData || []);
@@ -49,11 +26,17 @@ export function AppProvider({ children }) {
             // Process Live Attendance
             const statusMap = {};
             if (logsData) {
-                logsData.forEach(log => {
-                    if (!statusMap[log.employee_id]) {
-                        statusMap[log.employee_id] = log;
-                    }
-                });
+                // Filter only last 24h logs for live attendance
+                const yesterday = new Date();
+                yesterday.setHours(yesterday.getHours() - 24);
+                
+                logsData
+                    .filter(log => new Date(log.timestamp) > yesterday)
+                    .forEach(log => {
+                        if (!statusMap[log.employeeId]) {
+                            statusMap[log.employeeId] = log;
+                        }
+                    });
             }
 
             const activeWorkers = Object.keys(statusMap)
@@ -70,112 +53,66 @@ export function AppProvider({ children }) {
 
     useEffect(() => {
         if (!session?.establishment?.id) return;
-
         fetchData();
 
-        const channel = supabase
-            .channel('time-sheet-updates')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'time_logs',
-                    filter: `establishment_id=eq.${session.establishment.id}`
-                },
-                (payload) => {
-                    console.log("New time log received, refreshing data...", payload);
-                    fetchData(true);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        // Polling as a temporary replacement for Supabase Realtime
+        const interval = setInterval(() => fetchData(true), 30000); 
+        return () => clearInterval(interval);
     }, [session]);
 
     const addEmployee = async (data) => {
         if (!session?.establishment?.id) return;
-
-        const payload = {
-            name: data.name,
-            role: data.role,
-            salary: data.salary,
-            hire_date: data.hireDate ? data.hireDate : null,
-            establishment_id: session.establishment.id
-        };
-        if (data.pinCode) payload.pin_code = data.pinCode;
-
-        const { data: newEmp, error } = await supabase
-            .from('employees')
-            .insert([payload])
-            .select();
-
-        if (error) {
-            console.error("Error adding employee:", error);
-            return;
+        try {
+            const newEmp = await api.post('/employees', {
+                ...data,
+                establishment_id: session.establishment.id
+            });
+            setEmployees([...employees, newEmp]);
+        } catch (err) {
+            console.error(err);
         }
-        setEmployees([...employees, ...newEmp]);
     };
 
     const updateEmployee = async (id, data) => {
-        const payload = {
-            name: data.name,
-            role: data.role,
-            salary: data.salary,
-            hire_date: data.hireDate ? data.hireDate : null
-        };
-        if (data.pinCode) payload.pin_code = data.pinCode;
-
-        const { error } = await supabase
-            .from('employees')
-            .update(payload)
-            .eq('id', id);
-
-        if (error) {
-            console.error("Error updating employee:", error);
+        try {
+            const updatedEmp = await api.put(`/employees/${id}`, data);
+            setEmployees(employees.map(emp => emp.id === id ? updatedEmp : emp));
+            return true;
+        } catch (err) {
+            console.error(err);
             return false;
         }
-
-        setEmployees(employees.map(emp =>
-            emp.id === id ? { ...emp, ...data, hire_date: data.hireDate } : emp
-        ));
-        return true;
     };
 
     const deleteEmployee = async (id) => {
-        const { error } = await supabase.from('employees').delete().eq('id', id);
-        if (!error) {
+        try {
+            await api.delete(`/employees/${id}`);
             setEmployees(employees.filter(emp => emp.id !== id));
-            setVacations(vacations.filter(vac => vac.employee_id !== id));
+            setVacations(vacations.filter(vac => vac.employeeId !== id));
+        } catch (err) {
+            console.error(err);
         }
     };
 
     const addVacation = async (data) => {
         if (!session?.establishment?.id) return;
-
-        const { data: newVac, error } = await supabase
-            .from('vacations')
-            .insert([{
-                employee_id: data.employeeId,
-                start_date: data.startDate,
-                end_date: data.endDate,
+        try {
+            const newVac = await api.post('/vacations', {
+                ...data,
                 establishment_id: session.establishment.id
-            }])
-            .select();
-
-        if (error) {
-            console.error("Error adding vacation:", error);
-            return;
+            });
+            setVacations([...vacations, newVac]);
+        } catch (err) {
+            console.error(err);
         }
-        setVacations([...vacations, ...newVac]);
     };
 
     const deleteVacation = async (id) => {
-        const { error } = await supabase.from('vacations').delete().eq('id', id);
-        if (!error) {
+        try {
+            await api.delete(`/vacations/${id}`);
             setVacations(vacations.filter(vac => vac.id !== id));
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -190,7 +127,7 @@ export function AppProvider({ children }) {
             addVacation,
             deleteVacation,
             liveAttendants,
-            fetchData // Exposing fetchData to refresh on Ponto updates if needed, though they are separate apps essentially (or same app different routes)
+            fetchData
         }}>
             {children}
         </AppContext.Provider>
