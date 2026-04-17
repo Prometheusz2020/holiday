@@ -55,7 +55,7 @@ export function AppProvider({ children }) {
         if (!session?.establishment?.id) return;
         fetchData();
 
-        // Polling as a temporary replacement for Supabase Realtime
+        // Polling for data updates periodically
         const interval = setInterval(() => fetchData(true), 30000); 
         return () => clearInterval(interval);
     }, [session]);

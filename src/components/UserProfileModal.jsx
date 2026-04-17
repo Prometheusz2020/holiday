@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { X, User, Loader2, Check, Mail } from 'lucide-react';
 
@@ -18,7 +18,7 @@ export default function UserProfileModal({ onClose }) {
         if (session?.user) {
             setFormData({
                 email: session.user.email,
-                fullName: session.user.user_metadata?.full_name || ''
+                fullName: session.profile?.name || ''
             });
         }
     }, [session]);
@@ -29,23 +29,18 @@ export default function UserProfileModal({ onClose }) {
         setError('');
         setSuccess('');
 
-        const updates = {
-            data: { full_name: formData.fullName }
-        };
-
-        if (formData.email !== session.user.email) {
-            updates.email = formData.email;
-        }
-
-        const { error } = await supabase.auth.updateUser(updates);
-
-        if (error) {
-            setError('Erro ao atualizar perfil: ' + error.message);
-        } else {
-            setSuccess('Dados atualizados com sucesso!' + (updates.email ? ' Verifique seu novo email para confirmar.' : ''));
+        try {
+            await api.put(`/administrators/${session.user.id}/profile`, {
+                name: formData.fullName,
+                email: formData.email
+            });
+            
+            setSuccess('Dados atualizados com sucesso!');
             setTimeout(() => {
-                if (!updates.email) onClose();
+                onClose();
             }, 2000);
+        } catch (err) {
+            setError('Erro ao atualizar perfil: ' + err.message);
         }
         setLoading(false);
     };

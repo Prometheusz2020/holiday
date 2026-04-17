@@ -176,7 +176,7 @@ export default function Masters() {
 
                             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-500 text-xs flex gap-2 items-start">
                                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                                <p>Atenção: Cadastrar aqui <strong>não cria</strong> a conta de login automaticamente. O usuário deve se cadastrar com este email ou você deve criar no painel Supabase Auth.</p>
+                                <p>Atenção: Cadastrar aqui cria o acesso master para este usuário. Ele deve usar este email e a senha definida para logar.</p>
                             </div>
 
                             <button type="submit" className="btn-primary w-full bg-red-600 hover:bg-red-500 border-none text-white">

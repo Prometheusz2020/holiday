@@ -251,6 +251,74 @@ app.delete('/api/time-logs/:id', async (req, res) => {
     }
 });
 
+// --- ESTABLISHMENTS ---
+app.get('/api/establishments', async (req, res) => {
+    try {
+        const establishments = await prisma.establishment.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(establishments);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/establishments/:id/flags', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isBlocked, paymentWarning } = req.body;
+        const establishment = await prisma.establishment.update({
+            where: { id },
+            data: { isBlocked, paymentWarning }
+        });
+        res.json(establishment);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/establishments', async (req, res) => {
+    const { estName, estType, adminName, email, password } = req.body;
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Create Establishment
+            const establishment = await tx.establishment.create({
+                data: {
+                    name: estName,
+                    businessType: estType
+                }
+            });
+
+            // 2. Create Administrator
+            const admin = await tx.administrator.create({
+                data: {
+                    name: adminName,
+                    email: email,
+                    password: password, // Frontend sends hashed password
+                    establishmentId: establishment.id
+                }
+            });
+
+            // 3. Create Employee (CEO)
+            const employee = await tx.employee.create({
+                data: {
+                    name: adminName,
+                    role: 'CEO',
+                    pinCode: '1234',
+                    establishmentId: establishment.id,
+                    hireDate: new Date()
+                }
+            });
+
+            return { establishment, admin, employee };
+        });
+
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // --- DAILY STATUSES ---
 app.get('/api/daily-statuses/:establishmentId', async (req, res) => {
     try {
@@ -322,6 +390,34 @@ app.get('/api/administrators/:establishmentId', async (req, res) => {
             orderBy: { name: 'asc' }
         });
         res.json(admins);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/administrators/:id/profile', async (req, res) => {
+    const { id } = req.params;
+    const { name, email } = req.body;
+    try {
+        const admin = await prisma.administrator.update({
+            where: { id },
+            data: { name, email }
+        });
+        res.json(admin);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/administrators/:id/password', async (req, res) => {
+    const { id } = req.params;
+    const { password } = req.body;
+    try {
+        const admin = await prisma.administrator.update({
+            where: { id },
+            data: { password }
+        });
+        res.json(admin);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 import { useNavigate, Link } from 'react-router-dom';
 import { Briefcase, Loader2, ArrowLeft, Building2, User, Lock, Plus, ShieldAlert, Ban, CheckCircle } from 'lucide-react';
 import { hashPassword } from '../utils/auth';
@@ -38,13 +38,12 @@ export default function MasterDashboard() {
     // --- DASHBOARD ACTIONS ---
     const fetchEstablishments = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('establishments')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) console.error("Error fetching:", error);
-        else setEstablishments(data || []);
+        try {
+            const data = await api.get('/establishments');
+            setEstablishments(data || []);
+        } catch (error) {
+            console.error("Error fetching:", error);
+        }
         setLoading(false);
     };
 
@@ -58,13 +57,12 @@ export default function MasterDashboard() {
         // Optimistic UI
         setEstablishments(prev => prev.map(e => e.id === id ? { ...e, is_blocked: newBlocked, payment_warning: newWarning } : e));
 
-        const { error } = await supabase.rpc('update_establishment_flags', {
-            p_id: id,
-            p_blocked: newBlocked,
-            p_warning: newWarning
-        });
-
-        if (error) {
+        try {
+            await api.put(`/establishments/${id}/flags`, {
+                isBlocked: newBlocked,
+                paymentWarning: newWarning
+            });
+        } catch (error) {
             alert("Erro ao atualizar status: " + error.message);
             fetchEstablishments(); // Revert
         }
@@ -79,46 +77,15 @@ export default function MasterDashboard() {
         e.preventDefault();
         setLoading(true);
         try {
-            // 1. Create Auth User
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: formData.email,
-                password: formData.password,
-                options: { data: { full_name: formData.adminName } }
-            });
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Erro ao criar usuário.");
-
-            // 2. Create Establishment & Profile (RPC)
-            const { data: newEstId, error: rpcError } = await supabase.rpc('create_establishment_and_admin', {
-                p_name: formData.estName,
-                p_business_type: formData.estType,
-                p_admin_id: authData.user.id
-            });
-            if (rpcError) throw rpcError;
-
-            // 3. Auto-Register in Administrators Table (Master Panel Access)
             const hashedPassword = await hashPassword(formData.password);
-            const { error: adminError } = await supabase.from('administrators').insert([{
-                name: formData.adminName,
-                email: formData.email,
-                password: hashedPassword,
-                establishment_id: newEstId
-            }]);
-            if (adminError) console.error("Auto-Admin Error:", adminError);
-
-            // 4. Auto-Register in Employees Table (Kiosk Access - PIN 1234)
-            const { error: empError } = await supabase.from('employees').insert([{
-                name: formData.adminName,
-                role: 'CEO',
-                salary: 0, // Default for owner
-                pin_code: '1234',
-                establishment_id: newEstId,
-                hire_date: new Date().toISOString()
-            }]);
-            if (empError) console.error("Auto-Employee Error:", empError);
+            
+            await api.post('/establishments', {
+                ...formData,
+                password: hashedPassword
+            });
 
             alert("Estabelecimento criado com sucesso! O dono já pode acessar o painel e o quiosque (PIN 1234).");
-            setFormData({ estName: '', estType: '', adminName: '', email: '', password: 'mudar123' }); // Cleared Type
+            setFormData({ estName: '', estType: '', adminName: '', email: '', password: 'mudar123' });
             setView('list');
             fetchEstablishments();
         } catch (err) {

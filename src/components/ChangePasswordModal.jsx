@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { supabase } from '../services/supabase';
+import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { X, Lock, Loader2, Check } from 'lucide-react';
 
 export default function ChangePasswordModal({ onClose }) {
+    const { session } = useAuth();
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -19,15 +21,14 @@ export default function ChangePasswordModal({ onClose }) {
             return;
         }
 
-        const { error } = await supabase.auth.updateUser({ password: password });
-
-        if (error) {
-            setError('Erro ao atualizar senha: ' + error.message);
-        } else {
+        try {
+            await api.put(`/administrators/${session.user.id}/password`, { password: password });
             setSuccess(true);
             setTimeout(() => {
                 onClose();
             }, 2000);
+        } catch (err) {
+            setError('Erro ao atualizar senha: ' + err.message);
         }
         setLoading(false);
     };

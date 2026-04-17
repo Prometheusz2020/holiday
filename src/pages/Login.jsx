@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabase';
+
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, Loader2, Info } from 'lucide-react';
 
