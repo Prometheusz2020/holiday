@@ -16,7 +16,7 @@ export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpd
                 // Pre-fill for editing
                 const dt = new Date(editingLog.timestamp);
                 setFormData({
-                    employeeId: editingLog.employee_id,
+                    employeeId: editingLog.employeeId || editingLog.employee_id,
                     date: dt.toISOString().split('T')[0],
                     time: dt.toTimeString().slice(0, 5),
                     type: editingLog.type
@@ -93,24 +93,30 @@ export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpd
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Employee */}
+                    {/* Employee Info */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-zinc-400">Funcionário</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-zinc-500"><User size={16} /></span>
-                            <select
-                                className="input-field pl-10"
-                                value={formData.employeeId}
-                                onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
-                                required
-                                disabled={!!editingLog}
-                            >
-                                <option value="">Selecione...</option>
-                                {employees.map(emp => (
-                                    <option key={emp.id} value={emp.id}>{emp.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Funcionário</label>
+                        {editingLog ? (
+                            <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 opacity-80">
+                                <User size={18} className="text-zinc-500" />
+                                <span className="font-bold text-zinc-100">{employees.find(e => String(e.id) === String(formData.employeeId))?.name || 'Desconhecido'}</span>
+                            </div>
+                        ) : (
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-zinc-500"><User size={16} /></span>
+                                <select
+                                    className="input-field pl-10"
+                                    value={formData.employeeId}
+                                    onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
+                                    required
+                                >
+                                    <option value="">Selecione...</option>
+                                    {employees.map(emp => (
+                                        <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* Date & Time */}
