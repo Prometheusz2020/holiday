@@ -360,64 +360,58 @@ export default function TimeSheet() {
                                     return sortedGroups.map(({ employee, logs: empLogs }) => {
                                         const empDuration = calculateHours(empLogs);
                                         return (
-                                            <div key={employee?.id || Math.random()} className="flex flex-col md:flex-row md:items-center px-6 py-5 hover:bg-white/[0.02] transition-colors gap-6 group">
-                                                {/* Employee Identity */}
-                                                <div className="flex items-center gap-4 min-w-[240px]">
-                                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/5 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold shadow-xl shadow-blue-500/5 group-hover:scale-110 transition-transform">
-                                                        {employee?.name?.charAt(0) || '?'}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-zinc-100 tracking-tight text-lg group-hover:text-white transition-colors">
-                                                            {employee?.name || 'Desconhecido'}
+                                            <div key={employee?.id || Math.random()} className="group px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-white/[0.03] transition-all border-b border-white/5 last:border-0 gap-4">
+                                                {/* Employee info on the left */}
+                                                <div className="flex items-center gap-3 md:w-72 shrink-0">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+                                                    <span className="font-bold text-zinc-200 text-sm md:text-base tracking-tight truncate">
+                                                        {employee?.name || 'Desconhecido'}
+                                                    </span>
+                                                    <div className="md:hidden ml-auto">
+                                                        <span className="text-xs font-bold text-blue-500/80 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                                                            {formatDuration(empDuration)}
                                                         </span>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            {selectedEmployeeId === 'ALL' && (
-                                                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
-                                                                    Freq. Diária
-                                                                </span>
-                                                            )}
-                                                            <span className="text-xs font-bold text-blue-500/80 bg-blue-500/10 px-2 py-0.5 rounded-full">
-                                                                {formatDuration(empDuration)}
-                                                            </span>
-                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Time Logs Sequence */}
-                                                <div className="flex flex-wrap items-center gap-3 flex-1">
+                                                {/* Logs in the center/middle */}
+                                                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 flex-1 md:px-4">
                                                     {empLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map((log) => (
-                                                        <div key={log.id} className="flex items-center bg-zinc-900/50 border border-white/5 rounded-xl overflow-hidden group/log relative hover:border-blue-500/30 hover:bg-zinc-900 transition-all duration-300">
-                                                            <div className={`w-1.5 self-stretch ${log.type === 'IN' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]'}`} />
-                                                            <div className="flex items-center px-3 py-2 gap-4">
-                                                                <div className="flex flex-col">
-                                                                    <span className={`text-[10px] uppercase font-black leading-none mb-1.5 ${log.type === 'IN' ? 'text-emerald-500/70' : 'text-orange-500/70'}`}>
-                                                                        {log.type === 'IN' ? 'Entrada' : 'Saída'}
-                                                                    </span>
-                                                                    <span className="font-mono font-bold text-base text-zinc-100">
-                                                                        {format(parseISO(log.timestamp), 'HH:mm')}
-                                                                    </span>
-                                                                </div>
+                                                        <div key={log.id} className="flex items-center gap-2 group/time relative">
+                                                            <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
+                                                                <span className={`text-[9px] md:text-[10px] font-black tracking-widest uppercase ${log.type === 'IN' ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                                                    {log.type === 'IN' ? 'Entrada' : 'Saída'}
+                                                                </span>
+                                                                <span className="font-mono font-bold text-zinc-100 text-sm md:text-lg leading-none">
+                                                                    {format(parseISO(log.timestamp), 'HH:mm')}
+                                                                </span>
+                                                            </div>
 
-                                                                {/* Individual Log Actions */}
-                                                                <div className="flex items-center border-l border-white/5 pl-2 gap-1 opacity-0 group-hover/log:opacity-100 transition-opacity">
-                                                                    <button
-                                                                        onClick={() => handleEdit(log)}
-                                                                        className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                                                        title="Editar horário"
-                                                                    >
-                                                                        <Pencil size={14} />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDelete(log.id)}
-                                                                        className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                                                                        title="Excluir horário"
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                    </button>
-                                                                </div>
+                                                            {/* Action buttons appearing on hover of specific time */}
+                                                            <div className="flex items-center gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity ml-1">
+                                                                <button
+                                                                    onClick={() => handleEdit(log)}
+                                                                    className="p-1 text-zinc-500 hover:text-white hover:bg-white/10 rounded transition-colors"
+                                                                    title="Editar"
+                                                                >
+                                                                    <Pencil size={12} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDelete(log.id)}
+                                                                    className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                                                                    title="Excluir"
+                                                                >
+                                                                    <Trash2 size={12} />
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     ))}
+                                                </div>
+
+                                                {/* Total on the right (desktop only) */}
+                                                <div className="hidden md:flex flex-col items-end shrink-0 min-w-[90px] border-l border-white/5 pl-4">
+                                                    <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest leading-none mb-1">Total dia</span>
+                                                    <span className="font-bold text-blue-400 text-base">{formatDuration(empDuration)}</span>
                                                 </div>
                                             </div>
                                         );
