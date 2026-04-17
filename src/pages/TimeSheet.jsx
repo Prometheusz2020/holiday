@@ -360,82 +360,97 @@ export default function TimeSheet() {
                                         );
                                     }
 
-                                    return sortedGroups.map(({ employee, logs: empLogs }) => {
-                                        const empDuration = calculateHours(empLogs);
-                                        
-                                        // Pair logs for better visualization (E + S)
-                                        const sortedLogs = [...empLogs].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
-                                        const pairs = [];
-                                        let tempIn = null;
-                                        
-                                        sortedLogs.forEach(log => {
-                                            if (log.type === 'IN') {
-                                                if (tempIn) pairs.push({ in: tempIn, out: null });
-                                                tempIn = log;
-                                            } else {
-                                                pairs.push({ in: tempIn, out: log });
-                                                tempIn = null;
-                                            }
-                                        });
-                                        if (tempIn) pairs.push({ in: tempIn, out: null });
-
-                                        return (
-                                            <div key={employee?.id || Math.random()} className="group px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-white/[0.03] transition-all border-b border-white/5 last:border-0 gap-4">
-                                                {/* Employee Name */}
-                                                <div className="flex items-center gap-3 md:w-64 shrink-0">
-                                                    <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-                                                    <span className="font-bold text-zinc-100 text-sm md:text-base tracking-tight truncate">
-                                                        {employee?.name || 'Funcionário'}
-                                                    </span>
-                                                </div>
-
-                                                {/* Time Pairs (In -> Out) */}
-                                                <div className="flex flex-wrap items-center gap-x-10 gap-y-3 flex-1 md:px-4">
-                                                    {pairs.map((pair, idx) => (
-                                                        <div key={idx} className="flex items-center gap-3 bg-zinc-950/40 px-3 py-1.5 rounded-lg border border-white/5">
-                                                            {/* Entrance */}
-                                                            {pair.in ? (
-                                                                <div className="flex items-center gap-2 group/time relative">
-                                                                    <span className="text-[9px] font-black text-emerald-500/70 uppercase tracking-widest">E:</span>
-                                                                    <span className="font-mono font-bold text-zinc-200 text-sm md:text-base">{format(parseISO(pair.in.timestamp), 'HH:mm')}</span>
-                                                                    
-                                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl">
-                                                                        <button onClick={() => handleEdit(pair.in)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
-                                                                        <button onClick={() => handleDelete(pair.in.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-[10px] text-zinc-600 italic">--:--</span>
-                                                            )}
-
-                                                            <div className="w-2 h-[1px] bg-zinc-800" />
-
-                                                            {/* Exit */}
-                                                            {pair.out ? (
-                                                                <div className="flex items-center gap-2 group/time relative">
-                                                                    <span className="text-[9px] font-black text-orange-500/70 uppercase tracking-widest">S:</span>
-                                                                    <span className="font-mono font-bold text-zinc-200 text-sm md:text-base">{format(parseISO(pair.out.timestamp), 'HH:mm')}</span>
-                                                                    
-                                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl">
-                                                                        <button onClick={() => handleEdit(pair.out)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
-                                                                        <button onClick={() => handleDelete(pair.out.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-[10px] text-zinc-600 italic animate-pulse">Pendente</span>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {/* Duration */}
-                                                <div className="hidden md:flex flex-col items-end shrink-0 min-w-[90px] border-l border-white/5 pl-4">
-                                                    <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest leading-none mb-1">Total dia</span>
-                                                    <span className="font-bold text-blue-400 text-base">{formatDuration(empDuration)}</span>
-                                                </div>
+                                    return (
+                                        <div className="flex flex-col">
+                                            {/* Column Headers (Desktop only) */}
+                                            <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-white/[0.02] border-b border-white/5 text-[10px] uppercase font-black tracking-widest text-zinc-500">
+                                                <div className="col-span-3">Funcionário</div>
+                                                <div className="col-span-7">Relatório de Horários (Entrada / Saída)</div>
+                                                <div className="col-span-2 text-right">Duração do Dia</div>
                                             </div>
-                                        );
-                                    });
+
+                                            {/* Rows */}
+                                            <div className="divide-y divide-white/5">
+                                                {sortedGroups.map(({ employee, logs: empLogs }) => {
+                                                    const empDuration = calculateHours(empLogs);
+                                                    
+                                                    // Pair logs
+                                                    const sortedLogs = [...empLogs].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                                                    const pairs = [];
+                                                    let tempIn = null;
+                                                    
+                                                    sortedLogs.forEach(log => {
+                                                        if (log.type === 'IN') {
+                                                            if (tempIn) pairs.push({ in: tempIn, out: null });
+                                                            tempIn = log;
+                                                        } else {
+                                                            pairs.push({ in: tempIn, out: log });
+                                                            tempIn = null;
+                                                        }
+                                                    });
+                                                    if (tempIn) pairs.push({ in: tempIn, out: null });
+
+                                                    return (
+                                                        <div key={employee?.id || Math.random()} className="group px-4 md:px-6 py-4 flex flex-col md:grid md:grid-cols-12 md:gap-4 md:items-center hover:bg-white/[0.03] transition-all">
+                                                            
+                                                            {/* Employee Name (Badge Style) */}
+                                                            <div className="col-span-3 flex items-center gap-2 mb-2 md:mb-0">
+                                                                <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20 text-sm md:text-base tracking-tight truncate max-w-full hover:bg-blue-500/20 transition-colors">
+                                                                    {employee?.name || 'Funcionário'}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Time Pairs */}
+                                                            <div className="col-span-7 flex flex-wrap items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar">
+                                                                {pairs.map((pair, idx) => (
+                                                                    <div key={idx} className="flex items-center bg-zinc-950/40 rounded-lg border border-white/10 overflow-hidden shadow-inner flex-shrink-0">
+                                                                        {/* Entrance */}
+                                                                        <div className="flex items-center gap-2 group/time relative px-3 py-1.5 border-r border-white/5 hover:bg-white/5 transition-colors">
+                                                                            <span className="text-[9px] font-black text-emerald-500/60 uppercase">E</span>
+                                                                            <span className="font-mono font-bold text-zinc-100 text-sm">{pair.in ? format(parseISO(pair.in.timestamp), 'HH:mm') : '--:--'}</span>
+                                                                            
+                                                                            {pair.in && (
+                                                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl scale-90">
+                                                                                    <button onClick={() => handleEdit(pair.in)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
+                                                                                    <button onClick={() => handleDelete(pair.in.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Exit */}
+                                                                        <div className="flex items-center gap-2 group/time relative px-3 py-1.5 hover:bg-white/5 transition-colors">
+                                                                            <span className="text-[9px] font-black text-orange-500/60 uppercase">S</span>
+                                                                            <span className="font-mono font-bold text-zinc-100 text-sm">{pair.out ? format(parseISO(pair.out.timestamp), 'HH:mm') : pair.in ? <span className="text-[9px] animate-pulse">Pendente</span> : '--:--'}</span>
+                                                                            
+                                                                            {pair.out && (
+                                                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl scale-90">
+                                                                                    <button onClick={() => handleEdit(pair.out)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
+                                                                                    <button onClick={() => handleDelete(pair.out.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Total (Desktop only) */}
+                                                            <div className="col-span-2 text-right hidden md:block">
+                                                                <span className="px-3 py-1.5 rounded-md bg-zinc-950/50 border border-white/5 font-mono font-bold text-blue-400 text-sm shadow-inner group-hover:border-blue-500/20 transition-all">
+                                                                    {formatDuration(empDuration)}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Mobile Total */}
+                                                            <div className="md:hidden flex items-center justify-between mt-3 text-[10px] text-zinc-500 bg-white/5 p-2 rounded">
+                                                                <span className="font-bold uppercase tracking-widest">Duração Total</span>
+                                                                <span className="font-mono font-bold text-blue-400">{formatDuration(empDuration)}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
                                 })()}
                             </div>
                         </div>
