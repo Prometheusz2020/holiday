@@ -340,9 +340,9 @@ export default function TimeSheet() {
                                     // Group logs by employee
                                     const groups = {};
                                     dayLogs.forEach(log => {
-                                        const empId = log.employee_id;
+                                        const empId = log.employeeId || log.employee_id;
                                         if (!groups[empId]) {
-                                            const employee = log.employees || employees.find(e => e.id === empId);
+                                            const employee = log.employee || log.employees || employees.find(e => e.id === empId);
                                             groups[empId] = { employee, logs: [] };
                                         }
                                         groups[empId].logs.push(log);
