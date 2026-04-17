@@ -20,6 +20,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', database: 'Neon' }
 // Login Simples (Check Administrators)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
+    console.log(`[DEBUG] Tentativa de login: email="${email}", password="${password}"`);
     const cleanEmail = email ? email.trim() : '';
     try {
         const admin = await prisma.administrator.findFirst({
