@@ -401,31 +401,31 @@ export default function TimeSheet() {
                                                             </div>
 
                                                             {/* Time Pairs */}
-                                                            <div className="col-span-7 flex flex-wrap items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar">
+                                                            <div className="col-span-7 flex flex-wrap items-center gap-2 md:gap-4 overflow-x-visible">
                                                                 {pairs.map((pair, idx) => (
-                                                                    <div key={idx} className="flex items-center bg-zinc-950/40 rounded-lg border border-white/10 overflow-hidden shadow-inner flex-shrink-0">
+                                                                    <div key={idx} className="flex items-center bg-zinc-950/60 rounded-xl border border-white/10 shadow-lg flex-shrink-0 relative">
                                                                         {/* Entrance */}
-                                                                        <div className="flex items-center gap-2 group/time relative px-3 py-1.5 border-r border-white/5 hover:bg-white/5 transition-colors">
-                                                                            <span className="text-[9px] font-black text-emerald-500/60 uppercase">E</span>
-                                                                            <span className="font-mono font-bold text-zinc-100 text-sm">{pair.in ? format(parseISO(pair.in.timestamp), 'HH:mm') : '--:--'}</span>
+                                                                        <div className="flex items-center gap-2 group/time relative px-3 py-2 border-r border-white/5 hover:bg-white/5 transition-colors first:rounded-l-xl">
+                                                                            <span className="text-[9px] font-black text-emerald-500/80 uppercase">E</span>
+                                                                            <span className="font-mono font-bold text-zinc-100 text-sm md:text-base">{pair.in ? format(parseISO(pair.in.timestamp), 'HH:mm') : '--:--'}</span>
                                                                             
                                                                             {pair.in && (
-                                                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl scale-90">
-                                                                                    <button onClick={() => handleEdit(pair.in)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
-                                                                                    <button onClick={() => handleDelete(pair.in.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
+                                                                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/20 rounded-lg p-1 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-all duration-200 z-[100] shadow-2xl scale-110">
+                                                                                    <button onClick={() => handleEdit(pair.in)} className="p-1.5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-colors"><Pencil size={12} /></button>
+                                                                                    <button onClick={() => handleDelete(pair.in.id)} className="p-1.5 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
                                                                                 </div>
                                                                             )}
                                                                         </div>
 
                                                                         {/* Exit */}
-                                                                        <div className="flex items-center gap-2 group/time relative px-3 py-1.5 hover:bg-white/5 transition-colors">
-                                                                            <span className="text-[9px] font-black text-orange-500/60 uppercase">S</span>
-                                                                            <span className="font-mono font-bold text-zinc-100 text-sm">{pair.out ? format(parseISO(pair.out.timestamp), 'HH:mm') : pair.in ? <span className="text-[9px] animate-pulse">Pendente</span> : '--:--'}</span>
+                                                                        <div className="flex items-center gap-2 group/time relative px-3 py-2 hover:bg-white/5 transition-colors last:rounded-r-xl">
+                                                                            <span className="text-[9px] font-black text-orange-500/80 uppercase">S</span>
+                                                                            <span className="font-mono font-bold text-zinc-100 text-sm md:text-base">{pair.out ? format(parseISO(pair.out.timestamp), 'HH:mm') : pair.in ? <span className="text-[9px] animate-pulse text-zinc-500">Pendente</span> : '--:--'}</span>
                                                                             
                                                                             {pair.out && (
-                                                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl scale-90">
-                                                                                    <button onClick={() => handleEdit(pair.out)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
-                                                                                    <button onClick={() => handleDelete(pair.out.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
+                                                                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/20 rounded-lg p-1 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-all duration-200 z-[100] shadow-2xl scale-110">
+                                                                                    <button onClick={() => handleEdit(pair.out)} className="p-1.5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-colors"><Pencil size={12} /></button>
+                                                                                    <button onClick={() => handleDelete(pair.out.id)} className="p-1.5 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
                                                                                 </div>
                                                                             )}
                                                                         </div>
