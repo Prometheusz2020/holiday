@@ -144,7 +144,7 @@ export default function Ponto() {
             </button>
 
             <div className="w-full max-w-sm animate-in zoom-in-95 duration-300">
-                <div className="text-center mb-6">
+                <div className="text-center mb-4">
                     <h2 className="text-3xl font-bold mb-1">
                         {getScreenTitle()}
                     </h2>
@@ -155,7 +155,7 @@ export default function Ponto() {
 
                 {/* Employee Select */}
                 {actionType !== 'ADMIN' && (
-                    <div className="mb-6 relative">
+                    <div className="mb-4 relative">
                         <User className="absolute left-4 top-3.5 text-zinc-500" size={20} />
                         <select
                             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 pl-12 text-lg focus:outline-none focus:border-primary appearance-none cursor-pointer text-white"
@@ -171,7 +171,7 @@ export default function Ponto() {
                 )}
 
                 {/* PIN Display */}
-                <div className="flex justify-center gap-4 mb-6 h-12">
+                <div className="flex justify-center gap-4 mb-4 h-12">
                     {[0, 1, 2, 3].map(i => {
                         let activeColor = 'bg-zinc-500';
                         if (actionType === 'IN') activeColor = 'bg-green-500';
@@ -186,26 +186,26 @@ export default function Ponto() {
                 </div>
 
                 {/* Numpad */}
-                <div className="grid grid-cols-3 gap-2 mb-6">
+                <div className="grid grid-cols-3 gap-2 mb-4">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                         <button
                             key={num}
                             onClick={() => handlePinClick(num.toString())}
-                            className="h-20 bg-zinc-900 rounded-2xl text-2xl font-bold text-zinc-300 hover:bg-zinc-800 hover:text-white hover:scale-[1.02] active:scale-95 transition-all border border-zinc-800"
+                            className="h-16 bg-zinc-900 rounded-2xl text-2xl font-bold text-zinc-300 hover:bg-zinc-800 hover:text-white hover:scale-[1.02] active:scale-95 transition-all border border-zinc-800"
                         >
                             {num}
                         </button>
                     ))}
-                    <div className="flex items-center justify-center h-20"></div>
+                    <div className="flex items-center justify-center h-16"></div>
                     <button
                         onClick={() => handlePinClick('0')}
-                        className="h-20 bg-zinc-900 rounded-2xl text-2xl font-bold text-zinc-300 hover:bg-zinc-800 hover:text-white hover:scale-[1.02] active:scale-95 transition-all border border-zinc-800"
+                        className="h-16 bg-zinc-900 rounded-2xl text-2xl font-bold text-zinc-300 hover:bg-zinc-800 hover:text-white hover:scale-[1.02] active:scale-95 transition-all border border-zinc-800"
                     >
                         0
                     </button>
                     <button
                         onClick={handleDelete}
-                        className="h-20 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 hover:bg-red-500/20 active:scale-95 transition-all border border-red-500/20"
+                        className="h-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 hover:bg-red-500/20 active:scale-95 transition-all border border-red-500/20"
                     >
                         <Eraser size={24} />
                     </button>
