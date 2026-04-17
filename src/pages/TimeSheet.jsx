@@ -341,7 +341,10 @@ export default function TimeSheet() {
                                     const groups = {};
                                     dayLogs.forEach(log => {
                                         const empId = log.employee_id;
-                                        if (!groups[empId]) groups[empId] = { employee: log.employees, logs: [] };
+                                        if (!groups[empId]) {
+                                            const employee = log.employees || employees.find(e => e.id === empId);
+                                            groups[empId] = { employee, logs: [] };
+                                        }
                                         groups[empId].logs.push(log);
                                     });
                                     
@@ -359,56 +362,73 @@ export default function TimeSheet() {
 
                                     return sortedGroups.map(({ employee, logs: empLogs }) => {
                                         const empDuration = calculateHours(empLogs);
+                                        
+                                        // Pair logs for better visualization (E + S)
+                                        const sortedLogs = [...empLogs].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                                        const pairs = [];
+                                        let tempIn = null;
+                                        
+                                        sortedLogs.forEach(log => {
+                                            if (log.type === 'IN') {
+                                                if (tempIn) pairs.push({ in: tempIn, out: null });
+                                                tempIn = log;
+                                            } else {
+                                                pairs.push({ in: tempIn, out: log });
+                                                tempIn = null;
+                                            }
+                                        });
+                                        if (tempIn) pairs.push({ in: tempIn, out: null });
+
                                         return (
                                             <div key={employee?.id || Math.random()} className="group px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-white/[0.03] transition-all border-b border-white/5 last:border-0 gap-4">
-                                                {/* Employee info on the left */}
-                                                <div className="flex items-center gap-3 md:w-72 shrink-0">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-                                                    <span className="font-bold text-zinc-200 text-sm md:text-base tracking-tight truncate">
-                                                        {employee?.name || 'Desconhecido'}
+                                                {/* Employee Name */}
+                                                <div className="flex items-center gap-3 md:w-64 shrink-0">
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+                                                    <span className="font-bold text-zinc-100 text-sm md:text-base tracking-tight truncate">
+                                                        {employee?.name || 'Funcionário'}
                                                     </span>
-                                                    <div className="md:hidden ml-auto">
-                                                        <span className="text-xs font-bold text-blue-500/80 bg-blue-500/10 px-2 py-0.5 rounded-full">
-                                                            {formatDuration(empDuration)}
-                                                        </span>
-                                                    </div>
                                                 </div>
 
-                                                {/* Logs in the center/middle */}
-                                                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 flex-1 md:px-4">
-                                                    {empLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map((log) => (
-                                                        <div key={log.id} className="flex items-center gap-2 group/time relative">
-                                                            <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
-                                                                <span className={`text-[9px] md:text-[10px] font-black tracking-widest uppercase ${log.type === 'IN' ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                                                    {log.type === 'IN' ? 'Entrada' : 'Saída'}
-                                                                </span>
-                                                                <span className="font-mono font-bold text-zinc-100 text-sm md:text-lg leading-none">
-                                                                    {format(parseISO(log.timestamp), 'HH:mm')}
-                                                                </span>
-                                                            </div>
+                                                {/* Time Pairs (In -> Out) */}
+                                                <div className="flex flex-wrap items-center gap-x-10 gap-y-3 flex-1 md:px-4">
+                                                    {pairs.map((pair, idx) => (
+                                                        <div key={idx} className="flex items-center gap-3 bg-zinc-950/40 px-3 py-1.5 rounded-lg border border-white/5">
+                                                            {/* Entrance */}
+                                                            {pair.in ? (
+                                                                <div className="flex items-center gap-2 group/time relative">
+                                                                    <span className="text-[9px] font-black text-emerald-500/70 uppercase tracking-widest">E:</span>
+                                                                    <span className="font-mono font-bold text-zinc-200 text-sm md:text-base">{format(parseISO(pair.in.timestamp), 'HH:mm')}</span>
+                                                                    
+                                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl">
+                                                                        <button onClick={() => handleEdit(pair.in)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
+                                                                        <button onClick={() => handleDelete(pair.in.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[10px] text-zinc-600 italic">--:--</span>
+                                                            )}
 
-                                                            {/* Action buttons appearing on hover of specific time */}
-                                                            <div className="flex items-center gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity ml-1">
-                                                                <button
-                                                                    onClick={() => handleEdit(log)}
-                                                                    className="p-1 text-zinc-500 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                                                    title="Editar"
-                                                                >
-                                                                    <Pencil size={12} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDelete(log.id)}
-                                                                    className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
-                                                                    title="Excluir"
-                                                                >
-                                                                    <Trash2 size={12} />
-                                                                </button>
-                                                            </div>
+                                                            <div className="w-2 h-[1px] bg-zinc-800" />
+
+                                                            {/* Exit */}
+                                                            {pair.out ? (
+                                                                <div className="flex items-center gap-2 group/time relative">
+                                                                    <span className="text-[9px] font-black text-orange-500/70 uppercase tracking-widest">S:</span>
+                                                                    <span className="font-mono font-bold text-zinc-200 text-sm md:text-base">{format(parseISO(pair.out.timestamp), 'HH:mm')}</span>
+                                                                    
+                                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded px-1 py-0.5 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity z-10 shadow-xl">
+                                                                        <button onClick={() => handleEdit(pair.out)} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"><Pencil size={11} /></button>
+                                                                        <button onClick={() => handleDelete(pair.out.id)} className="p-1 hover:bg-red-500/10 rounded text-zinc-400 hover:text-red-500"><Trash2 size={11} /></button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[10px] text-zinc-600 italic animate-pulse">Pendente</span>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
 
-                                                {/* Total on the right (desktop only) */}
+                                                {/* Duration */}
                                                 <div className="hidden md:flex flex-col items-end shrink-0 min-w-[90px] border-l border-white/5 pl-4">
                                                     <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest leading-none mb-1">Total dia</span>
                                                     <span className="font-bold text-blue-400 text-base">{formatDuration(empDuration)}</span>
