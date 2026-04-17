@@ -27,6 +27,8 @@ export default function TimeSheet() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingLog, setEditingLog] = useState(null);
     const [selectedDayForAdd, setSelectedDayForAdd] = useState(null);
+    const [forcedEmployeeId, setForcedEmployeeId] = useState(null);
+    const [forcedType, setForcedType] = useState('IN');
 
     // Status Modal State
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -144,22 +146,24 @@ export default function TimeSheet() {
     const handleEdit = (log) => {
         setEditingLog(log);
         setSelectedDayForAdd(null);
+        setForcedEmployeeId(null);
+        setForcedType('IN');
         setShowAddModal(true);
     };
 
     const handleAddNew = () => {
         setEditingLog(null);
         setSelectedDayForAdd(null);
+        setForcedEmployeeId(null);
+        setForcedType('IN');
         setShowAddModal(true);
     };
 
-    const handleAddForDay = (date) => {
-        if (selectedEmployeeId === 'ALL') {
-             alert("Selecione um funcionário primeiro.");
-             return;
-        }
+    const handleAddForDay = (date, empId = null, type = 'IN') => {
         setEditingLog(null);
         setSelectedDayForAdd(date); 
+        setForcedEmployeeId(empId);
+        setForcedType(type);
         setShowAddModal(true);
     };
 
@@ -420,7 +424,20 @@ export default function TimeSheet() {
                                                                         {/* Exit */}
                                                                         <div className="flex items-center gap-2 group/time relative px-3 py-2 hover:bg-white/5 transition-colors last:rounded-r-xl">
                                                                             <span className="text-[9px] font-black text-orange-500/80 uppercase">S</span>
-                                                                            <span className="font-mono font-bold text-zinc-100 text-sm md:text-base">{pair.out ? format(parseISO(pair.out.timestamp), 'HH:mm') : pair.in ? <span className="text-[9px] animate-pulse text-zinc-500">Pendente</span> : '--:--'}</span>
+                                                                            <span className="font-mono font-bold text-zinc-100 text-sm md:text-base">
+                                                                                {pair.out ? (
+                                                                                    format(parseISO(pair.out.timestamp), 'HH:mm')
+                                                                                ) : pair.in ? (
+                                                                                    <button 
+                                                                                        onClick={() => handleAddForDay(date, employee?.id, 'OUT')}
+                                                                                        className="text-[9px] animate-pulse text-blue-500 hover:text-blue-400 font-bold uppercase transition-colors"
+                                                                                    >
+                                                                                        Pendente
+                                                                                    </button>
+                                                                                ) : (
+                                                                                    '--:--'
+                                                                                )}
+                                                                            </span>
                                                                             
                                                                             {pair.out && (
                                                                                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/20 rounded-lg p-1 flex gap-1 opacity-0 group-hover/time:opacity-100 transition-all duration-200 z-[100] shadow-2xl scale-110">
@@ -465,9 +482,10 @@ export default function TimeSheet() {
                 employees={employees}
                 onSave={addTimeLog}
                 onUpdate={updateTimeLog}
-                initialEmployeeId={selectedEmployeeId}
+                initialEmployeeId={forcedEmployeeId || selectedEmployeeId}
                 editingLog={editingLog}
                 initialDate={selectedDayForAdd}
+                initialType={forcedType}
             />
 
             <StatusModal

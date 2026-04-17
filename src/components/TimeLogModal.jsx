@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Clock, Calendar as CalendarIcon, User } from 'lucide-react';
 
-export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpdate, initialEmployeeId, editingLog, initialDate }) {
+export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpdate, initialEmployeeId, editingLog, initialDate, initialType }) {
     const [formData, setFormData] = useState({
         employeeId: '',
         date: '',
@@ -48,11 +48,11 @@ export default function TimeLogModal({ isOpen, onClose, employees, onSave, onUpd
                     employeeId: initialEmployeeId !== 'ALL' ? initialEmployeeId : '',
                     date: dateStr,
                     time: timeStr,
-                    type: 'IN'
+                    type: initialType || 'IN'
                 });
             }
         }
-    }, [isOpen, initialEmployeeId, editingLog, initialDate]);
+    }, [isOpen, initialEmployeeId, editingLog, initialDate, initialType]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
