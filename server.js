@@ -22,7 +22,12 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const admin = await prisma.administrator.findFirst({
-            where: { email },
+            where: { 
+                email: {
+                    equals: email,
+                    mode: 'insensitive'
+                }
+            },
             include: { establishment: true }
         });
 
