@@ -157,16 +157,23 @@ export default function Ponto() {
                 {actionType !== 'ADMIN' && (
                     <div className="mb-4 relative">
                         <User className="absolute left-4 top-3.5 text-zinc-500" size={20} />
-                        <select
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 pl-12 text-lg focus:outline-none focus:border-primary appearance-none cursor-pointer text-white"
-                            value={selectedEmployee}
-                            onChange={handleEmployeeSelect}
-                        >
-                            <option value="">Selecione seu nome...</option>
-                            {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name}</option>
-                            ))}
-                        </select>
+                        {employees.length === 0 ? (
+                            <div className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 pl-12 text-lg text-zinc-500 flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+                                Carregando colaboradores...
+                            </div>
+                        ) : (
+                            <select
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 pl-12 text-lg focus:outline-none focus:border-primary appearance-none cursor-pointer text-white"
+                                value={selectedEmployee}
+                                onChange={handleEmployeeSelect}
+                            >
+                                <option value="">Selecione seu nome...</option>
+                                {employees.map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                ))}
+                            </select>
+                        )}
                     </div>
                 )}
 

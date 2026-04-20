@@ -9,13 +9,22 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 
+export { app, prisma };
+
 app.use(cors());
 app.use(express.json());
 
 // --- ROUTES ---
 
-// Health Check
-app.get('/api/health', (req, res) => res.json({ status: 'ok', database: 'Neon' }));
+// Health Check (Warm-up)
+app.get('/api/health', async (req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({ status: 'ok', database: 'Neon (Connected)' });
+    } catch (e) {
+        res.status(500).json({ status: 'error', message: e.message });
+    }
+});
 
 // Login Simples (Check Administrators)
 app.post('/api/auth/login', async (req, res) => {
@@ -485,6 +494,10 @@ app.post('/api/auth/verify-admin', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor Neon rodando na porta ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Servidor Neon rodando na porta ${PORT}`);
+    });
+}
+
+export default app;

@@ -1,16 +1,58 @@
-# React + Vite
+# Holiday Project
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este é um projeto web construído com **React (Vite)** no frontend e **Express + Prisma** no backend, utilizando o banco de dados **Neon (PostgreSQL)**.
 
-Currently, two official plugins are available:
+## 🚀 Como Iniciar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Pré-requisitos
 
-## React Compiler
+- Node.js instalado
+- Banco de dados PostgreSQL (Neon) configurado
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Configuração
 
-## Expanding the ESLint configuration
+1.  Clone o repositório.
+2.  Instale as dependências:
+    ```bash
+    npm install
+    ```
+3.  Configure o arquivo `.env` com as suas credenciais (DATABASE_URL, etc).
+4.  Sincronize o banco de dados com o Prisma:
+    ```bash
+    npx prisma generate
+    npx prisma db push
+    ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Rodando o Projeto
+
+Para rodar o frontend e o backend simultaneamente:
+
+- **Frontend:** `npm run dev`
+- **Backend:** `npm run start` (ou `npm run server` para usar nodemon)
+
+---
+
+## 📂 Pasta de Scripts (`/scripts`)
+
+Esta pasta contém scripts utilitários e migrações SQL utilizadas para manutenção e migração de dados.
+
+### Arquivos SQL
+
+- `RUN_IN_SUPABASE.sql`: Scripts legados executados no Supabase.
+- `supabase_migration.sql`: Script principal para migração de estrutura do Supabase para o Neon.
+- `fix_kiosk_and_realtime.sql`: Ajustes específicos para as funcionalidades de Kiosk e Realtime.
+- `fix_security_warnings.sql`: Scripts para correção de permissões e segurança no banco de dados.
+
+### Scripts Node.js
+
+- `import_sql.cjs`: Utilitário para importar arquivos SQL diretamente no banco configurado.
+- `migrate_data.cjs`: Script para migração programática de dados entre ambientes.
+- `seed_skina.js`: Script de seed para popular o banco com dados iniciais da loja Skina.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Frontend:** React, Vite, Tailwind CSS, Lucide React.
+- **Backend:** Node.js, Express, Prisma ORM.
+- **Banco de Dados:** PostgreSQL (Neon).

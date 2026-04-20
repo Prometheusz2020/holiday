@@ -21,7 +21,18 @@ export function AuthProvider({ children }) {
             setLoading(false);
         };
 
+        // Warm up backend (Render Cold Start mitigation)
+        const warmUpBackend = async () => {
+            try {
+                await api.get('/health');
+                console.log("[System] Backend warmed up.");
+            } catch (e) {
+                console.warn("[System] Warm up failed, backend might still be starting.", e);
+            }
+        };
+
         initializeSession();
+        warmUpBackend();
     }, []);
 
     const signIn = async (email, password) => {
