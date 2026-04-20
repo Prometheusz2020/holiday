@@ -79,7 +79,11 @@ app.post('/api/employees', async (req, res) => {
                 name: data.name,
                 role: data.role,
                 pinCode: data.pin_code || '1234',
-                establishmentId: data.establishment_id
+                establishmentId: data.establishment_id,
+                workloadDaily: data.workload_daily || 440,
+                workloadWeekly: data.workload_weekly || 2640,
+                timeBankBalance: data.time_bank_balance || 0,
+                useTimeBank: data.use_time_bank !== undefined ? data.use_time_bank : true
             }
         });
         res.json(employee);
@@ -97,7 +101,11 @@ app.put('/api/employees/:id', async (req, res) => {
             data: {
                 name: data.name,
                 role: data.role,
-                pinCode: data.pin_code
+                pinCode: data.pin_code,
+                workloadDaily: data.workload_daily,
+                workloadWeekly: data.workload_weekly,
+                timeBankBalance: data.time_bank_balance,
+                useTimeBank: data.use_time_bank
             }
         });
         res.json(employee);
@@ -279,6 +287,20 @@ app.put('/api/establishments/:id/flags', async (req, res) => {
         const establishment = await prisma.establishment.update({
             where: { id },
             data: { isBlocked, paymentWarning }
+        });
+        res.json(establishment);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/establishments/:id/settings', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { autoLunch, lunchMinutes } = req.body;
+        const establishment = await prisma.establishment.update({
+            where: { id },
+            data: { autoLunch, lunchMinutes }
         });
         res.json(establishment);
     } catch (error) {

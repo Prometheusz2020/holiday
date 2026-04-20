@@ -13,6 +13,11 @@ model Establishment {
   businessType    String?          @map("business_type")
   isBlocked       Boolean          @default(false) @map("is_blocked")
   paymentWarning  Boolean          @default(false) @map("payment_warning")
+  
+  // Settings
+  autoLunch       Boolean          @default(false) @map("auto_lunch")
+  lunchMinutes    Int              @default(60)    @map("lunch_minutes")
+  
   createdAt       DateTime         @default(now()) @map("created_at")
   
   profiles        Profile[]
@@ -44,6 +49,13 @@ model Employee {
   pinCode         String        @map("pin_code")
   salary          Decimal?      @db.Decimal
   hireDate        DateTime?     @map("hire_date") @db.Date
+  
+  // Workload & Time Bank
+  workloadDaily   Int?          @default(440)   @map("workload_daily") // Standard daily minutes (e.g., 440 = 7:20h)
+  workloadWeekly  Int?          @default(2640)  @map("workload_weekly") // Standard weekly minutes (e.g., 2640 = 44h)
+  timeBankBalance Int           @default(0)      @map("time_bank_balance") // Balance in minutes
+  useTimeBank     Boolean       @default(true)   @map("use_time_bank")
+  
   createdAt       DateTime      @default(now()) @map("created_at")
   
   establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)

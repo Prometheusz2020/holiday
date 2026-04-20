@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import Ponto from './pages/Ponto';
 import RegisterEstablishment from './pages/RegisterEstablishment';
 import TimeSheetPrint from './pages/TimeSheetPrint';
+import SettingsPage from './pages/Settings';
 import './index.css';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
             <Route path="/timesheet" element={<PrivateRoute><Layout><TimeSheet /></Layout></PrivateRoute>} />
             <Route path="/timesheet/print" element={<PrivateRoute><TimeSheetPrint /></PrivateRoute>} />
             <Route path="/masters" element={<PrivateRoute><Layout><Masters /></Layout></PrivateRoute>} />
+            <Route path="/settings" element={<PrivateRoute><Layout><SettingsPage /></Layout></PrivateRoute>} />
           </Routes>
         </AppProvider>
       </AuthProvider>

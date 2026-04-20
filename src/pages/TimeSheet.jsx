@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, FileBarChart, Filter, Loader2, Share2, Clock
 import { format, subMonths, addMonths, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTimeSheetController } from '../controllers/useTimeSheetController';
+import { useAuth } from '../context/AuthContext';
 import { openWhatsApp } from '../utils/whatsapp';
 import ReportModal from '../components/ReportModal';
 import TimeLogModal from '../components/TimeLogModal';
@@ -23,6 +24,12 @@ export default function TimeSheet() {
         dailyStatuses,
         updateDailyStatus
     } = useTimeSheetController();
+    const { session } = useAuth();
+    
+    const estSettings = {
+        autoLunch: session?.establishment?.autoLunch || session?.establishment?.auto_lunch || false,
+        lunchMinutes: session?.establishment?.lunchMinutes || session?.establishment?.lunch_minutes || 60
+    };
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingLog, setEditingLog] = useState(null);
@@ -34,7 +41,7 @@ export default function TimeSheet() {
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [selectedStatusDate, setSelectedStatusDate] = useState(null);
 
-    const calculateHours = (dayLogs) => {
+    const calculateHours = (dayLogs, workloadDaily = 440, status = null, settings = { autoLunch: false, lunchMinutes: 60 }) => {
         let sorted = [...dayLogs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         let totalMinutes = 0;
         let entryTime = null;
@@ -47,7 +54,35 @@ export default function TimeSheet() {
             }
         });
 
-        return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60, totalMinutes };
+        // Desconto automático de almoço (se ativado nas configurações e houver atividade no dia)
+        if (settings.autoLunch && totalMinutes > 0 && !status) {
+            totalMinutes = Math.max(0, totalMinutes - settings.lunchMinutes);
+        }
+
+        // Se tiver status de folga ou feriado, a carga esperada é 0 (tudo vira extra)
+        // Se tiver falta, a carga esperada é descontada negativamente
+        let expectedMinutes = workloadDaily;
+        if (status?.status === 'FERIADO' || status?.status === 'FOLGA' || status?.status === 'ATESTADO') {
+            expectedMinutes = 0;
+        }
+
+        const balanceMinutes = totalMinutes - expectedMinutes;
+
+        return { 
+            hours: Math.floor(totalMinutes / 60), 
+            minutes: totalMinutes % 60, 
+            totalMinutes,
+            balanceMinutes
+        };
+    };
+
+    const formatBalance = (totalMinutes) => {
+        if (totalMinutes === 0) return "0h 00m";
+        const isNegative = totalMinutes < 0;
+        const absMinutes = Math.abs(totalMinutes);
+        const h = Math.floor(absMinutes / 60);
+        const m = absMinutes % 60;
+        return `${isNegative ? '-' : '+'}${h}h ${m.toString().padStart(2, '0')}m`;
     };
 
     const formatDuration = ({ hours, minutes }) => {
@@ -73,6 +108,7 @@ export default function TimeSheet() {
 
     // Calculate Totals
     let monthlyMinutes = 0;
+    let monthlyBalance = 0;
     
     // Sort reverse to show latest first and FILTER future dates
     const dailyData = daysInMonth
@@ -84,8 +120,15 @@ export default function TimeSheet() {
             const dayStatus = dailyStatuses.find(s => s.date === dateKey);
 
             // Calculate daily total ONLY if filtered by employee
-            const duration = selectedEmployeeId !== 'ALL' ? calculateHours(dayLogs) : { hours: 0, minutes: 0, totalMinutes: 0 };
+            const currentEmployee = employees.find(e => e.id === selectedEmployeeId);
+            const workload = currentEmployee?.workloadDaily || 440;
+            
+            const duration = selectedEmployeeId !== 'ALL' 
+                ? calculateHours(dayLogs, workload, dayStatus, estSettings) 
+                : { hours: 0, minutes: 0, totalMinutes: 0, balanceMinutes: 0 };
+            
             monthlyMinutes += duration.totalMinutes;
+            monthlyBalance += duration.balanceMinutes;
 
             return {
                 date: date,
@@ -98,7 +141,8 @@ export default function TimeSheet() {
 
     const monthlyTotal = {
         hours: Math.floor(monthlyMinutes / 60),
-        minutes: monthlyMinutes % 60
+        minutes: monthlyMinutes % 60,
+        balance: monthlyBalance
     };
 
     const handleShare = () => {
@@ -109,6 +153,7 @@ export default function TimeSheet() {
         text += `👤 *Funcionário:* ${empName}\n`;
         if (selectedEmployeeId !== 'ALL') {
             text += `⏱ *Total Mensal:* ${formatDuration(monthlyTotal)}\n`;
+            text += `⚖️ *Saldo do Mês:* ${formatBalance(monthlyTotal.balance)}\n`;
         }
         text += '\n';
 
@@ -117,7 +162,10 @@ export default function TimeSheet() {
             .forEach(({ date, logs, duration, status }) => {
             text += `🔹 *${format(date, 'dd/MM/yyyy')}*`;
             if (status) text += ` [${status.status}]`;
-            if (selectedEmployeeId !== 'ALL') text += ` (${formatDuration(duration)})`;
+            if (selectedEmployeeId !== 'ALL') {
+                text += ` (${formatDuration(duration)})`;
+                if (duration.totalMinutes > 0) text += ` Saldo: ${formatBalance(duration.balanceMinutes)}`;
+            }
             text += '\n';
 
             logs.forEach(log => {
@@ -269,6 +317,18 @@ export default function TimeSheet() {
                             <Clock size={24} />
                         </div>
                     </div>
+
+                    <div className={`card bg-zinc-900/50 border-zinc-800 flex items-center justify-between border-l-4 ${monthlyTotal.balance >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
+                        <div>
+                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Saldo do Mês</p>
+                            <h3 className={`text-3xl font-bold mt-1 ${monthlyTotal.balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                {formatBalance(monthlyTotal.balance)}
+                            </h3>
+                        </div>
+                        <div className={`p-3 rounded-full ${monthlyTotal.balance >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                            <FileBarChart size={24} />
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -326,12 +386,17 @@ export default function TimeSheet() {
                                     )}
 
                                     {selectedEmployeeId !== 'ALL' && (
-                                        <div className="flex items-center gap-2 text-sm font-medium bg-zinc-950 px-3 py-1 rounded-full border border-white/10">
+                                        <div className="flex items-center gap-3 text-sm font-medium bg-zinc-950 px-3 py-1 rounded-full border border-white/10">
                                             <span className="text-zinc-500">Total:</span>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-3">
                                                 <span className={duration.totalMinutes > 0 ? "text-white" : "text-zinc-500"}>
                                                     {formatDuration(duration)}
                                                 </span>
+                                                {duration.totalMinutes > 0 && (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${duration.balanceMinutes >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                        {formatBalance(duration.balanceMinutes)}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     )}

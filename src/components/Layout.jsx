@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, Calendar, Briefcase, LogOut, Lock, User, Menu, X, ShieldCheck, Clock, ClipboardList, Ban } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Briefcase, LogOut, Lock, User, Menu, X, ShieldCheck, Clock, ClipboardList, Ban, Settings } from 'lucide-react';
 import { useState } from 'react';
 import ChangePasswordModal from './ChangePasswordModal';
 import UserProfileModal from './UserProfileModal';
@@ -69,6 +69,10 @@ export default function Layout({ children }) {
                 <Link to="/masters" className={linkClass('/masters')} onClick={() => setIsSidebarOpen(false)}>
                     <ShieldCheck size={20} />
                     <span>Admins</span>
+                </Link>
+                <Link to="/settings" className={linkClass('/settings')} onClick={() => setIsSidebarOpen(false)}>
+                    <Settings size={20} />
+                    <span>Configurações</span>
                 </Link>
 
                 <div className="h-px bg-white/5 my-2"></div>
